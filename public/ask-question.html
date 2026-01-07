@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ask a Question - Stack Internal</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <svg viewBox="0 0 32 32" fill="currentColor">
+                    <path d="M26 16v10H6V16H4v12h24V16z"/>
+                    <path d="M6 10v6h20v-6H6zm18 4H8v-2h16v2z"/>
+                    <path d="M6 4v4h20V4H6zm18 2H8V6h16v2z"/>
+                </svg>
+                Stack Internal
+            </a>
+
+            <div class="team-selector" id="team-selector">
+                <div class="team-icon" id="team-icon">T</div>
+                <span id="team-name">Loading...</span>
+            </div>
+
+            <div class="header-actions">
+                <button class="btn" onclick="goBack()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="content">
+            <h1>Ask a question</h1>
+            <p style="margin-bottom: 32px; color: #6a737c;">Required fields <span style="color: #d32f2f;">*</span></p>
+
+            <!-- Title -->
+            <div class="form-group">
+                <label>Title <span style="color: #d32f2f;">*</span></label>
+                <input type="text" id="question-title" placeholder="e.g. How do I implement authentication in Node.js?" style="width: 100%; padding: 10px;">
+                <div class="error" id="title-error" style="display: none;"></div>
+            </div>
+
+            <!-- How to Ask Info Box -->
+            <div class="info-box">
+                <h3>How to Ask</h3>
+                <ul>
+                    <li>Not sure what to ask? Recurring questions, onboarding procedures, local setups, and FAQs all make for useful questions.</li>
+                    <li>Get a specific person's attention by adding their name to the "Notify" field.</li>
+                    <li>You aren't bound to the same question posting rules as on public Stack Overflow. We encourage you to ask any questions that fit your Team's unique needs.</li>
+                </ul>
+                <a href="#" style="color: #0077cc;">Learn more about asking ›</a>
+            </div>
+
+            <!-- Body -->
+            <div class="form-group">
+                <label>Body <span style="color: #d32f2f;">*</span></label>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn" onclick="insertFormat('**', '**')" title="Bold"><strong>B</strong></button>
+                        <button class="editor-btn" onclick="insertFormat('_', '_')" title="Italic"><em>I</em></button>
+                        <button class="editor-btn" onclick="insertFormat('`', '`')" title="Inline code">&lt;&gt;</button>
+                        <button class="editor-btn" onclick="insertFormat('```\n', '\n```')" title="Code block">{}</button>
+                        <button class="editor-btn" onclick="insertFormat('[', '](url)')" title="Link">🔗</button>
+                        <button class="editor-btn" onclick="insertFormat('> ', '')" title="Quote">"</button>
+                        <button class="editor-btn" onclick="insertFormat('![alt](', ')')" title="Image">📷</button>
+                        <button class="editor-btn" onclick="insertFormat('- ', '')" title="Bulleted list">•</button>
+                        <button class="editor-btn" onclick="insertFormat('1. ', '')" title="Numbered list">1.</button>
+                    </div>
+                    <textarea class="editor-textarea" id="question-body" placeholder="Describe your question in detail..."></textarea>
+                </div>
+                <div class="error" id="body-error" style="display: none;"></div>
+            </div>
+
+            <!-- How to Format Info Box -->
+            <div class="info-box">
+                <h3>How to Format</h3>
+                <ul>
+                    <li>create code fences with backticks ` or tildes ~</li>
+                    <li>add language identifier to highlight code</li>
+                    <li>put returns between paragraphs</li>
+                    <li>for linebreak add 2 spaces at end</li>
+                    <li><em>_italic_</em> or <strong>**bold**</strong></li>
+                    <li>indent code by 4 spaces</li>
+                    <li>backtick escapes <code>`like _so_`</code></li>
+                    <li>quote by placing &gt; at start of line</li>
+                    <li>to make links: <code>&lt;https://example.com&gt;</code> or <code>[example](https://example.com)</code></li>
+                </ul>
+                <div style="margin-top: 8px;">
+                    <a href="#" style="color: #0077cc; margin-right: 16px;">formatting help ›</a>
+                    <a href="#" style="color: #0077cc;">asking help ›</a>
+                </div>
+            </div>
+
+            <!-- Tags -->
+            <div class="form-group">
+                <label>Tags <span style="color: #d32f2f;">*</span></label>
+                <p style="font-size: 13px; color: #6a737c; margin-bottom: 8px;">At least one tag is required.</p>
+                <input type="text" id="tag-input" placeholder="Type a tag name and press Enter" style="width: 100%; padding: 10px;">
+                <div id="tags-container" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;"></div>
+                <div class="error" id="tags-error" style="display: none;"></div>
+            </div>
+
+            <!-- Ask Team Members -->
+            <div class="form-group">
+                <label>Ask team members</label>
+                <p style="font-size: 13px; color: #6a737c; margin-bottom: 8px;">Select team members who you think might know the answer.</p>
+                <input type="text" id="members-input" placeholder="Type a name" style="width: 100%; padding: 10px;">
+                <div id="members-suggestions" style="display: none; position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 100;"></div>
+                <div id="members-container" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;"></div>
+            </div>
+
+            <!-- Answer Own Question -->
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="answer-own-question">
+                    Answer your own question - <a href="#" style="color: #0077cc;">share your knowledge, Q&A-style</a>
+                </label>
+            </div>
+
+            <!-- Answer Section (hidden by default) -->
+            <div id="answer-section" style="display: none; margin-top: 32px;">
+                <h2>Your Answer</h2>
+                <div class="editor-container" style="margin-top: 16px;">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn" onclick="insertFormatAnswer('**', '**')" title="Bold"><strong>B</strong></button>
+                        <button class="editor-btn" onclick="insertFormatAnswer('_', '_')" title="Italic"><em>I</em></button>
+                        <button class="editor-btn" onclick="insertFormatAnswer('`', '`')" title="Code">&lt;&gt;</button>
+                        <button class="editor-btn" onclick="insertFormatAnswer('[', '](url)')" title="Link">🔗</button>
+                    </div>
+                    <textarea class="editor-textarea" id="answer-body" placeholder="Write your answer here..."></textarea>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div style="margin-top: 32px;">
+                <button class="btn btn-primary btn-large" onclick="submitQuestion()">
+                    <span id="submit-text">Post your question</span>
+                </button>
+            </div>
+
+            <div id="error-message" class="error" style="display: none; margin-top: 16px;"></div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentTeam = null;
+        let selectedTags = [];
+        let selectedMembers = [];
+
+        const pathParts = window.location.pathname.split('/');
+        const teamSlug = pathParts[2];
+
+        async function init() {
+            const user = await StackInternal.checkAuth();
+            if (!user) return;
+
+            await loadTeamInfo();
+            setupTagInput();
+            setupMemberSearch();
+            setupAnswerToggle();
+        }
+
+        async function loadTeamInfo() {
+            try {
+                currentTeam = await StackInternal.apiCall(`/teams/${teamSlug}`);
+                document.getElementById('team-name').textContent = currentTeam.name;
+                document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
+            } catch (error) {
+                console.error('Load team error:', error);
+                StackInternal.showNotification('Failed to load team information', 'error');
+            }
+        }
+
+        function setupTagInput() {
+            const input = document.getElementById('tag-input');
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addTag(input.value.trim());
+                    input.value = '';
+                }
+            });
+        }
+
+        function addTag(tagName) {
+            if (!tagName) return;
+
+            tagName = tagName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+
+            if (selectedTags.includes(tagName)) {
+                StackInternal.showNotification('Tag already added', 'error');
+                return;
+            }
+
+            if (selectedTags.length >= 5) {
+                StackInternal.showNotification('Maximum 5 tags allowed', 'error');
+                return;
+            }
+
+            selectedTags.push(tagName);
+            renderTags();
+        }
+
+        function removeTag(tagName) {
+            selectedTags = selectedTags.filter(t => t !== tagName);
+            renderTags();
+        }
+
+        function renderTags() {
+            const container = document.getElementById('tags-container');
+            container.innerHTML = selectedTags.map(tag => `
+                <div class="tag" style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    ${tag}
+                    <span onclick="removeTag('${tag}')" style="font-weight: bold;">×</span>
+                </div>
+            `).join('');
+        }
+
+        async function setupMemberSearch() {
+            const input = document.getElementById('members-input');
+            const suggestions = document.getElementById('members-suggestions');
+            let searchTimeout;
+
+            input.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                const query = input.value.trim();
+
+                if (query.length < 2) {
+                    suggestions.style.display = 'none';
+                    return;
+                }
+
+                searchTimeout = setTimeout(async () => {
+                    if (!currentTeam) {
+                        console.error('Team not loaded yet');
+                        return;
+                    }
+
+                    try {
+                        const members = await StackInternal.apiCall(`/users/search?teamId=${currentTeam.id}&q=${query}`);
+
+                        if (members.length > 0) {
+                            suggestions.innerHTML = members.map(m => `
+                                <div onclick="addMember(${m.id}, '${m.first_name}', '${m.last_name}')" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f1f2f3;">
+                                    ${m.first_name} ${m.last_name} (${m.email})
+                                </div>
+                            `).join('');
+                            suggestions.style.display = 'block';
+                        } else {
+                            suggestions.style.display = 'none';
+                        }
+                    } catch (error) {
+                        console.error('Search members error:', error);
+                    }
+                }, 300);
+            });
+
+            // Hide suggestions on click outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#members-input') && !e.target.closest('#members-suggestions')) {
+                    suggestions.style.display = 'none';
+                }
+            });
+        }
+
+        function addMember(id, firstName, lastName) {
+            if (selectedMembers.find(m => m.id === id)) return;
+
+            selectedMembers.push({ id, firstName, lastName });
+            renderMembers();
+
+            document.getElementById('members-input').value = '';
+            document.getElementById('members-suggestions').style.display = 'none';
+        }
+
+        function removeMember(id) {
+            selectedMembers = selectedMembers.filter(m => m.id !== id);
+            renderMembers();
+        }
+
+        function renderMembers() {
+            const container = document.getElementById('members-container');
+            container.innerHTML = selectedMembers.map(m => `
+                <div style="background: #e1ecf4; padding: 6px 12px; border-radius: 3px; display: flex; align-items: center; gap: 8px;">
+                    ${m.firstName} ${m.lastName}
+                    <span onclick="removeMember(${m.id})" style="cursor: pointer; font-weight: bold;">×</span>
+                </div>
+            `).join('');
+        }
+
+        function setupAnswerToggle() {
+            document.getElementById('answer-own-question').addEventListener('change', (e) => {
+                const answerSection = document.getElementById('answer-section');
+                const submitText = document.getElementById('submit-text');
+
+                if (e.target.checked) {
+                    answerSection.style.display = 'block';
+                    submitText.textContent = 'Post your question and answer';
+                } else {
+                    answerSection.style.display = 'none';
+                    submitText.textContent = 'Post your question';
+                }
+            });
+        }
+
+        async function submitQuestion() {
+            // Clear errors
+            document.querySelectorAll('.error').forEach(el => el.style.display = 'none');
+            document.getElementById('error-message').style.display = 'none';
+
+            // Get values
+            const title = document.getElementById('question-title').value.trim();
+            const body = document.getElementById('question-body').value.trim();
+            const answerOwn = document.getElementById('answer-own-question').checked;
+            const answerBody = document.getElementById('answer-body').value.trim();
+
+            // Validate
+            let hasError = false;
+
+            if (!title) {
+                document.getElementById('title-error').textContent = 'Title is required';
+                document.getElementById('title-error').style.display = 'block';
+                hasError = true;
+            }
+
+            if (!body) {
+                document.getElementById('body-error').textContent = 'Body is required';
+                document.getElementById('body-error').style.display = 'block';
+                hasError = true;
+            }
+
+            if (selectedTags.length === 0) {
+                document.getElementById('tags-error').textContent = 'At least one tag is required';
+                document.getElementById('tags-error').style.display = 'block';
+                hasError = true;
+            }
+
+            if (answerOwn && !answerBody) {
+                const errorMsg = document.getElementById('error-message');
+                errorMsg.textContent = 'Answer body is required';
+                errorMsg.style.display = 'block';
+                hasError = true;
+            }
+
+            if (hasError) return;
+
+            // Check if team is loaded
+            if (!currentTeam) {
+                const errorMsg = document.getElementById('error-message');
+                errorMsg.textContent = 'Team information not loaded. Please refresh the page.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            try {
+                // Create question
+                const questionData = {
+                    teamId: currentTeam.id,
+                    title,
+                    body,
+                    tags: selectedTags
+                };
+
+                const questionResponse = await StackInternal.apiCall('/questions', {
+                    method: 'POST',
+                    body: JSON.stringify(questionData)
+                });
+
+                // Create answer if needed
+                if (answerOwn && answerBody) {
+                    await StackInternal.apiCall('/answers', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            questionId: questionResponse.questionId,
+                            body: answerBody
+                        })
+                    });
+                }
+
+                StackInternal.showNotification('Question posted successfully!', 'success');
+
+                // Redirect to question page
+                setTimeout(() => {
+                    window.location.href = `/team/${teamSlug}/questions/${questionResponse.questionId}`;
+                }, 1000);
+            } catch (error) {
+                const errorMsg = document.getElementById('error-message');
+                errorMsg.textContent = error.message;
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        function insertFormat(before, after) {
+            const textarea = document.getElementById('question-body');
+            insertTextFormat(textarea, before, after);
+        }
+
+        function insertFormatAnswer(before, after) {
+            const textarea = document.getElementById('answer-body');
+            insertTextFormat(textarea, before, after);
+        }
+
+        function insertTextFormat(textarea, before, after) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const selectedText = text.substring(start, end);
+
+            textarea.value = text.substring(0, start) + before + selectedText + after + text.substring(end);
+            textarea.focus();
+            textarea.setSelectionRange(start + before.length, end + before.length);
+        }
+
+        function goBack() {
+            window.history.back();
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Questions - Stack Internal</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <svg viewBox="0 0 32 32" fill="currentColor">
+                    <path d="M26 16v10H6V16H4v12h24V16z"/>
+                    <path d="M6 10v6h20v-6H6zm18 4H8v-2h16v2z"/>
+                    <path d="M6 4v4h20V4H6zm18 2H8V6h16v2z"/>
+                </svg>
+                Stack Internal
+            </a>
+
+            <div class="team-selector" id="team-selector">
+                <div class="team-icon" id="team-icon">T</div>
+                <span id="team-name">Loading...</span>
+            </div>
+
+            <div class="header-search">
+                <input type="text" placeholder="Search..." id="search-input">
+            </div>
+
+            <div class="header-actions">
+                <span class="header-icon" title="Search">🔍</span>
+                <button class="btn btn-primary" onclick="window.location.href='ask'">Ask a question</button>
+                <div class="user-menu" id="user-menu">
+                    <span class="header-icon">👤</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="content">
+            <div class="questions-header">
+                <h1 id="page-title">All Questions</h1>
+            </div>
+
+            <div class="question-count" id="question-count">Loading...</div>
+
+            <!-- Filters -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="filters">
+                    <button class="filter-btn active" data-sort="active">Active</button>
+                    <button class="filter-btn" data-sort="newest">Newest</button>
+                    <button class="filter-btn" onclick="showMoreFilters()">More ▼</button>
+                </div>
+
+                <button class="filter-btn" onclick="toggleFilterPanel()">
+                    🔍 Filter
+                </button>
+            </div>
+
+            <!-- More Filters Dropdown -->
+            <div id="more-filters" style="display: none; position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; padding: 12px; z-index: 100;">
+                <div style="margin-bottom: 8px; font-weight: 600;">Sort by</div>
+                <button class="filter-btn" data-sort="bountied" style="display: block; width: 100%; text-align: left; margin-bottom: 4px;">Bountied (0)</button>
+                <button class="filter-btn" data-sort="unanswered" style="display: block; width: 100%; text-align: left; margin-bottom: 4px;">Unanswered</button>
+                <button class="filter-btn" data-sort="frequent" style="display: block; width: 100%; text-align: left; margin-bottom: 4px;">Frequent</button>
+                <button class="filter-btn" data-sort="score" style="display: block; width: 100%; text-align: left;">Score</button>
+            </div>
+
+            <!-- Filter Panel -->
+            <div id="filter-panel" style="display: none; background: #f1f2f3; padding: 24px; border-radius: 4px; margin-bottom: 24px;">
+                <h3>Filter by</h3>
+                <div style="margin: 16px 0;">
+                    <label><input type="checkbox" id="filter-no-answers"> No answers</label><br>
+                    <label><input type="checkbox" id="filter-no-accepted"> No upvoted or accepted answers</label>
+                </div>
+
+                <h3>Sorted by</h3>
+                <div style="margin: 16px 0;">
+                    <label><input type="radio" name="sort-radio" value="newest"> Newest</label><br>
+                    <label><input type="radio" name="sort-radio" value="active" checked> Recent activity</label><br>
+                    <label><input type="radio" name="sort-radio" value="score"> Highest score</label><br>
+                    <label><input type="radio" name="sort-radio" value="frequent"> Most frequent</label>
+                </div>
+
+                <h3>Tagged with</h3>
+                <input type="text" id="tag-filter" placeholder="e.g. stack-overflow-internal" style="width: 100%; padding: 8px; margin: 8px 0;">
+
+                <div style="margin-top: 16px;">
+                    <button class="btn btn-primary" onclick="applyFilters()">Apply filter</button>
+                    <button class="btn" onclick="toggleFilterPanel()" style="margin-left: 8px;">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Questions List -->
+            <div id="questions-list">
+                <div class="loading">
+                    <div class="loading-icon"></div>
+                    <p>Loading questions...</p>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div id="pagination" style="display: none; margin-top: 24px; text-align: center;">
+                <button class="btn" id="prev-page" disabled>Previous</button>
+                <span id="page-info" style="margin: 0 16px;"></span>
+                <button class="btn" id="next-page">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentTeam = null;
+        let currentPage = 1;
+        let currentSort = 'active';
+        let currentFilters = {};
+
+        // Get team slug from URL
+        const pathParts = window.location.pathname.split('/');
+        const teamSlug = pathParts[2];
+
+        async function init() {
+            // Check auth
+            const user = await StackInternal.checkAuth();
+            if (!user) return;
+
+            // Load team info
+            await loadTeamInfo();
+
+            // Load questions
+            await loadQuestions();
+
+            // Setup search
+            setupSearch();
+
+            // Setup filter buttons
+            setupFilterButtons();
+        }
+
+        async function loadTeamInfo() {
+            try {
+                currentTeam = await StackInternal.apiCall(`/teams/${teamSlug}`);
+
+                document.getElementById('team-name').textContent = currentTeam.name;
+                document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
+                document.title = `Questions - ${currentTeam.name}`;
+            } catch (error) {
+                StackInternal.showNotification('Failed to load team info', 'error');
+            }
+        }
+
+        async function loadQuestions() {
+            try {
+                const params = new URLSearchParams({
+                    teamId: currentTeam.id,
+                    sort: currentSort,
+                    page: currentPage,
+                    limit: 20,
+                    ...currentFilters
+                });
+
+                const data = await StackInternal.apiCall(`/questions?${params}`);
+
+                // Update count
+                document.getElementById('question-count').textContent = `${data.total} post${data.total !== 1 ? 's' : ''}`;
+
+                // Render questions
+                const questionsList = document.getElementById('questions-list');
+                if (data.questions.length === 0) {
+                    questionsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #6a737c;">No questions found. Be the first to ask!</p>';
+                } else {
+                    questionsList.innerHTML = data.questions.map(q => renderQuestion(q)).join('');
+                }
+
+                // Update pagination
+                updatePagination(data);
+            } catch (error) {
+                console.error('Load questions error:', error);
+                StackInternal.showNotification('Failed to load questions', 'error');
+            }
+        }
+
+        function renderQuestion(q) {
+            const tags = q.tags ? q.tags.split(',').filter(t => t).map(tag =>
+                `<a href="?tag=${encodeURIComponent(tag)}" class="tag">${tag}</a>`
+            ).join('') : '';
+
+            return `
+                <div class="question-item">
+                    <div class="question-stats">
+                        <div class="stat">
+                            <span class="stat-value">${q.score}</span>
+                            <span class="stat-label">votes</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">${q.answer_count}</span>
+                            <span class="stat-label">answer${q.answer_count !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">${q.view_count}</span>
+                            <span class="stat-label">view${q.view_count !== 1 ? 's' : ''}</span>
+                        </div>
+                    </div>
+                    <div class="question-content">
+                        <h3 class="question-title">
+                            <a href="/team/${teamSlug}/questions/${q.id}">${q.title}</a>
+                        </h3>
+                        <div class="question-excerpt">
+                            ${q.body.substring(0, 200)}${q.body.length > 200 ? '...' : ''}
+                        </div>
+                        <div class="question-tags">
+                            ${tags}
+                        </div>
+                        <div class="question-meta">
+                            <div class="user-info">
+                                ${StackInternal.createUserAvatar(q)}
+                                <span>${q.first_name} ${q.last_name}</span>
+                            </div>
+                            <span>asked ${StackInternal.formatDate(q.created_at)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updatePagination(data) {
+            const pagination = document.getElementById('pagination');
+            if (data.totalPages > 1) {
+                pagination.style.display = 'block';
+                document.getElementById('prev-page').disabled = currentPage === 1;
+                document.getElementById('next-page').disabled = currentPage >= data.totalPages;
+                document.getElementById('page-info').textContent = `Page ${currentPage} of ${data.totalPages}`;
+            } else {
+                pagination.style.display = 'none';
+            }
+        }
+
+        function setupFilterButtons() {
+            document.querySelectorAll('.filter-btn[data-sort]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentSort = btn.dataset.sort;
+                    currentPage = 1;
+
+                    // Update active state
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    loadQuestions();
+                    hideMoreFilters();
+                });
+            });
+
+            // Pagination
+            document.getElementById('prev-page').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadQuestions();
+                }
+            });
+
+            document.getElementById('next-page').addEventListener('click', () => {
+                currentPage++;
+                loadQuestions();
+            });
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('search-input');
+            let searchTimeout;
+
+            searchInput.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    if (searchInput.value.trim()) {
+                        currentFilters.search = searchInput.value.trim();
+                    } else {
+                        delete currentFilters.search;
+                    }
+                    currentPage = 1;
+                    loadQuestions();
+                }, 500);
+            });
+        }
+
+        function showMoreFilters() {
+            const dropdown = document.getElementById('more-filters');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function hideMoreFilters() {
+            document.getElementById('more-filters').style.display = 'none';
+        }
+
+        function toggleFilterPanel() {
+            const panel = document.getElementById('filter-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function applyFilters() {
+            currentFilters = {};
+
+            if (document.getElementById('filter-no-answers').checked) {
+                currentFilters.filter = 'no-answers';
+            }
+
+            const sortRadio = document.querySelector('input[name="sort-radio"]:checked');
+            if (sortRadio) {
+                currentSort = sortRadio.value;
+            }
+
+            const tagFilter = document.getElementById('tag-filter').value.trim();
+            if (tagFilter) {
+                currentFilters.tag = tagFilter;
+            }
+
+            currentPage = 1;
+            loadQuestions();
+            toggleFilterPanel();
+        }
+
+        // Click outside to close dropdowns
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.filter-btn')) {
+                hideMoreFilters();
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

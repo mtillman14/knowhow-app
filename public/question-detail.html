@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question - Stack Internal</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <svg viewBox="0 0 32 32" fill="currentColor">
+                    <path d="M26 16v10H6V16H4v12h24V16z"/>
+                    <path d="M6 10v6h20v-6H6zm18 4H8v-2h16v2z"/>
+                    <path d="M6 4v4h20V4H6zm18 2H8V6h16v2z"/>
+                </svg>
+                Stack Internal
+            </a>
+
+            <div class="team-selector" id="team-selector">
+                <div class="team-icon" id="team-icon">T</div>
+                <span id="team-name">Loading...</span>
+            </div>
+
+            <div class="header-search">
+                <input type="text" placeholder="Search...">
+            </div>
+
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="goToAsk()">Ask a question</button>
+                <div class="user-menu">
+                    <span class="header-icon">👤</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="content">
+            <!-- Question -->
+            <div class="question-header">
+                <h1 id="question-title">Loading...</h1>
+                <div class="question-info">
+                    <span>Asked <span id="asked-date"></span></span>
+                    <span>Modified <span id="modified-date"></span></span>
+                    <span>Viewed <span id="view-count"></span></span>
+                </div>
+            </div>
+
+            <div class="question-body">
+                <div class="vote-cell">
+                    <button class="vote-btn" id="upvote-question" onclick="vote('question', 'up')">▲</button>
+                    <div class="vote-count" id="question-score">0</div>
+                    <button class="vote-btn" id="downvote-question" onclick="vote('question', 'down')">▼</button>
+                    <button class="vote-btn" title="Bookmark">🔖</button>
+                    <button class="vote-btn" title="History">🕐</button>
+                </div>
+
+                <div class="post-body">
+                    <div class="post-content" id="question-body">
+                        Loading...
+                    </div>
+
+                    <div class="post-actions">
+                        <a href="#" class="action-link">Share</a>
+                        <a href="#" class="action-link" id="edit-question">Edit</a>
+                        <a href="#" class="action-link">Follow</a>
+                        <a href="#" class="action-link">Close</a>
+                        <a href="#" class="action-link" id="delete-question">Delete</a>
+                    </div>
+
+                    <div class="question-tags" id="question-tags">
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; margin-top: 24px;">
+                        <div></div>
+                        <div class="post-user" id="question-user">
+                        </div>
+                    </div>
+
+                    <!-- Comments -->
+                    <div class="comments" id="question-comments">
+                    </div>
+                    <div class="add-comment" onclick="showCommentForm('question')">Add a comment</div>
+                    <div id="question-comment-form" style="display: none; margin-top: 12px;">
+                        <textarea id="question-comment-text" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;" rows="3"></textarea>
+                        <button class="btn btn-primary" style="margin-top: 8px;" onclick="submitComment('question')">Add comment</button>
+                        <button class="btn" onclick="hideCommentForm('question')" style="margin-left: 8px;">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Answers -->
+            <div class="answers-header">
+                <h2><span id="answer-count">0</span> Answer<span id="answer-plural">s</span></h2>
+                <select id="sort-answers" onchange="loadAnswers()">
+                    <option value="score">Highest score (default)</option>
+                    <option value="oldest">Date created (oldest first)</option>
+                    <option value="newest">Date created (newest first)</option>
+                </select>
+            </div>
+
+            <div id="answers-list">
+            </div>
+
+            <!-- Your Answer -->
+            <div style="margin-top: 48px;">
+                <h2>Your Answer</h2>
+                <div class="editor-container" style="margin-top: 16px;">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn" onclick="insertFormat('**', '**')" title="Bold">B</button>
+                        <button class="editor-btn" onclick="insertFormat('_', '_')" title="Italic">I</button>
+                        <button class="editor-btn" onclick="insertFormat('`', '`')" title="Code">&lt;&gt;</button>
+                        <button class="editor-btn" onclick="insertFormat('[link text](', ')')" title="Link">🔗</button>
+                    </div>
+                    <textarea class="editor-textarea" id="answer-body" placeholder="Write your answer here..."></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="submitAnswer()">Post Your Answer</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentQuestion = null;
+        let currentUser = null;
+        let currentTeam = null;
+
+        const pathParts = window.location.pathname.split('/');
+        const teamSlug = pathParts[2];
+        const questionId = pathParts[4];
+
+        async function init() {
+            currentUser = await StackInternal.checkAuth();
+            if (!currentUser) return;
+
+            await loadTeamInfo();
+            await loadQuestion();
+            await loadAnswers();
+        }
+
+        async function loadTeamInfo() {
+            try {
+                currentTeam = await StackInternal.apiCall(`/teams/${teamSlug}`);
+                document.getElementById('team-name').textContent = currentTeam.name;
+                document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
+            } catch (error) {
+                console.error('Load team error:', error);
+            }
+        }
+
+        async function loadQuestion() {
+            try {
+                currentQuestion = await StackInternal.apiCall(`/questions/${questionId}`);
+
+                document.getElementById('question-title').textContent = currentQuestion.title;
+                document.title = currentQuestion.title + ' - Stack Internal';
+
+                document.getElementById('asked-date').textContent = StackInternal.formatDate(currentQuestion.created_at);
+                document.getElementById('modified-date').textContent = StackInternal.formatDate(currentQuestion.updated_at);
+                document.getElementById('view-count').textContent = currentQuestion.view_count + ' time' + (currentQuestion.view_count !== 1 ? 's' : '');
+
+                document.getElementById('question-score').textContent = currentQuestion.score;
+                document.getElementById('question-body').innerHTML = StackInternal.parseMarkdown(currentQuestion.body);
+
+                // Tags
+                if (currentQuestion.tags && currentQuestion.tags.length > 0) {
+                    document.getElementById('question-tags').innerHTML = currentQuestion.tags.map(tag =>
+                        `<a href="/team/${teamSlug}/questions?tag=${tag.name}" class="tag">${tag.name}</a>`
+                    ).join('');
+                }
+
+                // User info
+                document.getElementById('question-user').innerHTML = `
+                    <div class="user-details">
+                        ${StackInternal.createUserAvatar(currentQuestion)}
+                        <div class="user-text">
+                            <div>asked ${StackInternal.formatDate(currentQuestion.created_at)}</div>
+                            <a href="#" class="user-name">${currentQuestion.first_name} ${currentQuestion.last_name}</a>
+                        </div>
+                    </div>
+                `;
+
+                // Update vote buttons
+                if (currentQuestion.userVote) {
+                    if (currentQuestion.userVote === 'up') {
+                        document.getElementById('upvote-question').classList.add('active');
+                    } else {
+                        document.getElementById('downvote-question').classList.add('active');
+                    }
+                }
+
+                // Load comments
+                await loadComments('question', questionId);
+            } catch (error) {
+                console.error('Load question error:', error);
+                StackInternal.showNotification('Failed to load question', 'error');
+            }
+        }
+
+        async function loadAnswers() {
+            try {
+                const sort = document.getElementById('sort-answers').value;
+                const answers = await StackInternal.apiCall(`/answers/question/${questionId}?sort=${sort}`);
+
+                document.getElementById('answer-count').textContent = answers.length;
+                document.getElementById('answer-plural').textContent = answers.length === 1 ? '' : 's';
+
+                const answersList = document.getElementById('answers-list');
+                if (answers.length === 0) {
+                    answersList.innerHTML = '';
+                } else {
+                    answersList.innerHTML = answers.map(a => renderAnswer(a)).join('');
+                }
+            } catch (error) {
+                console.error('Load answers error:', error);
+            }
+        }
+
+        function renderAnswer(answer) {
+            const acceptedBadge = answer.is_accepted ? '<div class="accepted-badge">✓ Accepted</div>' : '';
+
+            return `
+                <div class="answer ${answer.is_accepted ? 'accepted' : ''}">
+                    <div class="vote-cell">
+                        <button class="vote-btn" onclick="vote('answer-${answer.id}', 'up')">▲</button>
+                        <div class="vote-count" id="answer-${answer.id}-score">${answer.score}</div>
+                        <button class="vote-btn" onclick="vote('answer-${answer.id}', 'down')">▼</button>
+                        ${answer.question_owner === currentUser.user.id && !answer.is_accepted ? `<button class="vote-btn" onclick="acceptAnswer(${answer.id})" title="Accept answer">✓</button>` : ''}
+                    </div>
+
+                    <div class="post-body">
+                        ${acceptedBadge}
+                        <div class="post-content">${StackInternal.parseMarkdown(answer.body)}</div>
+
+                        <div class="post-actions">
+                            <a href="#" class="action-link">Share</a>
+                            <a href="#" class="action-link">Edit</a>
+                            <a href="#" class="action-link">Follow</a>
+                            <a href="#" class="action-link">Delete</a>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; margin-top: 16px;">
+                            <div></div>
+                            <div class="post-user">
+                                <div class="user-details">
+                                    ${StackInternal.createUserAvatar(answer)}
+                                    <div class="user-text">
+                                        <div>answered ${StackInternal.formatDate(answer.created_at)}</div>
+                                        <a href="#" class="user-name">${answer.first_name} ${answer.last_name}</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="comments" id="answer-${answer.id}-comments"></div>
+                        <div class="add-comment" onclick="showCommentForm('answer-${answer.id}')">Add a comment</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function vote(type, voteType) {
+            try {
+                let votableType, votableId;
+
+                if (type === 'question') {
+                    votableType = 'question';
+                    votableId = questionId;
+                } else if (type.startsWith('answer-')) {
+                    votableType = 'answer';
+                    votableId = type.replace('answer-', '');
+                }
+
+                const result = await StackInternal.apiCall('/votes', {
+                    method: 'POST',
+                    body: JSON.stringify({ votableType, votableId, voteType })
+                });
+
+                StackInternal.showNotification(result.message, 'success');
+
+                // Reload to update scores
+                if (type === 'question') {
+                    await loadQuestion();
+                } else {
+                    await loadAnswers();
+                }
+            } catch (error) {
+                StackInternal.showNotification(error.message, 'error');
+            }
+        }
+
+        async function submitAnswer() {
+            const body = document.getElementById('answer-body').value.trim();
+
+            if (body.length < 30) {
+                StackInternal.showNotification('Answer must be at least 30 characters', 'error');
+                return;
+            }
+
+            try {
+                await StackInternal.apiCall('/answers', {
+                    method: 'POST',
+                    body: JSON.stringify({ questionId, body })
+                });
+
+                StackInternal.showNotification('Answer posted successfully', 'success');
+                document.getElementById('answer-body').value = '';
+                await loadAnswers();
+            } catch (error) {
+                StackInternal.showNotification(error.message, 'error');
+            }
+        }
+
+        async function acceptAnswer(answerId) {
+            try {
+                await StackInternal.apiCall(`/answers/${answerId}/accept`, { method: 'POST' });
+                StackInternal.showNotification('Answer accepted', 'success');
+                await loadAnswers();
+            } catch (error) {
+                StackInternal.showNotification(error.message, 'error');
+            }
+        }
+
+        async function loadComments(parentType, parentId) {
+            try {
+                const comments = await StackInternal.apiCall(`/comments?parentType=${parentType}&parentId=${parentId}`);
+                const container = document.getElementById(`${parentType}-${parentId}-comments`) || document.getElementById('question-comments');
+
+                if (comments.length > 0) {
+                    container.innerHTML = comments.map(c => `
+                        <div class="comment">
+                            <div class="comment-text">${c.body}</div>
+                            <div class="comment-meta">${c.first_name} ${c.last_name} - ${StackInternal.formatDate(c.created_at)}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Load comments error:', error);
+            }
+        }
+
+        function showCommentForm(type) {
+            document.getElementById(`${type}-comment-form`).style.display = 'block';
+        }
+
+        function hideCommentForm(type) {
+            document.getElementById(`${type}-comment-form`).style.display = 'none';
+        }
+
+        async function submitComment(type) {
+            const text = document.getElementById(`${type}-comment-text`).value.trim();
+
+            if (!text) return;
+
+            try {
+                const parentType = type.includes('answer') ? 'answer' : 'question';
+                const parentId = type.includes('answer') ? type.replace('answer-', '') : questionId;
+
+                await StackInternal.apiCall('/comments', {
+                    method: 'POST',
+                    body: JSON.stringify({ parentType, parentId, body: text })
+                });
+
+                StackInternal.showNotification('Comment added', 'success');
+                document.getElementById(`${type}-comment-text`).value = '';
+                hideCommentForm(type);
+                await loadComments(parentType, parentId);
+            } catch (error) {
+                StackInternal.showNotification(error.message, 'error');
+            }
+        }
+
+        function insertFormat(before, after) {
+            const textarea = document.getElementById('answer-body');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const selectedText = text.substring(start, end);
+
+            textarea.value = text.substring(0, start) + before + selectedText + after + text.substring(end);
+            textarea.focus();
+            textarea.setSelectionRange(start + before.length, end + before.length);
+        }
+
+        function goToAsk() {
+            window.location.href = `/team/${teamSlug}/ask`;
+        }
+
+        init();
+    </script>
+</body>
+</html>

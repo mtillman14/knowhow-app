@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create a Team - Stack Internal</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="form-container">
+        <!-- Step 1: Email -->
+        <div id="step1" class="form-step">
+            <h1>Get started</h1>
+            <p class="subtitle">Collaborate, connect, and grow your team's wisdom</p>
+
+            <div style="background: #f1f2f3; padding: 24px; border-radius: 4px; margin-bottom: 24px;">
+                <div style="color: #f48024; font-weight: 600; margin-bottom: 12px;">Free plan</div>
+                <p style="margin-bottom: 12px; font-weight: 600;">Free knowledge sharing and collaboration platform</p>
+                <p>✓ No credit card required</p>
+                <p>✓ Free for up to 50 members</p>
+                <p>✓ Save and share information with your team</p>
+                <p>✓ Search for answers when you need them</p>
+            </div>
+
+            <div class="form-group">
+                <label>Work email</label>
+                <input type="email" id="email" placeholder="name@company.com" required>
+            </div>
+
+            <button onclick="nextStep(2)" class="btn btn-primary" style="width: 100%;">Next step</button>
+        </div>
+
+        <!-- Step 2: User Info -->
+        <div id="step2" class="form-step" style="display: none;">
+            <h1>Tell us about yourself</h1>
+            <p class="subtitle">We'll use this information to personalize your experience.</p>
+
+            <div class="form-group">
+                <label>First name</label>
+                <input type="text" id="firstName" required>
+            </div>
+
+            <div class="form-group">
+                <label>Last name</label>
+                <input type="text" id="lastName" required>
+            </div>
+
+            <div class="form-group">
+                <label>What kind of work do you do?</label>
+                <select id="workType">
+                    <option value="">Please select one...</option>
+                    <option value="developer">Developer</option>
+                    <option value="designer">Designer</option>
+                    <option value="product-manager">Product Manager</option>
+                    <option value="data-scientist">Data Scientist</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>What is your role?</label>
+                <select id="role">
+                    <option value="">Please select one...</option>
+                    <option value="individual-contributor">Individual Contributor</option>
+                    <option value="team-lead">Team Lead</option>
+                    <option value="manager">Manager</option>
+                    <option value="executive">Executive</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" required minlength="6">
+            </div>
+
+            <button onclick="nextStep(3)" class="btn btn-primary" style="width: 100%;">Next step</button>
+        </div>
+
+        <!-- Step 3: Team Info -->
+        <div id="step3" class="form-step" style="display: none;">
+            <h1>Tell us about your team</h1>
+            <p class="subtitle">We'll use this information to personalize your experience.</p>
+
+            <div class="form-group">
+                <label>Company name</label>
+                <input type="text" id="companyName">
+            </div>
+
+            <div class="form-group">
+                <label>Company size</label>
+                <select id="companySize">
+                    <option value="">Please select one...</option>
+                    <option value="1-10">1-10 employees</option>
+                    <option value="11-50">11-50 employees</option>
+                    <option value="51-200">51-200 employees</option>
+                    <option value="201-500">201-500 employees</option>
+                    <option value="500+">500+ employees</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>What is your primary goal with Stack Overflow?</label>
+                <select id="primaryGoal">
+                    <option value="">Please select one...</option>
+                    <option value="knowledge-sharing">Knowledge sharing</option>
+                    <option value="onboarding">Onboarding new team members</option>
+                    <option value="documentation">Technical documentation</option>
+                    <option value="collaboration">Team collaboration</option>
+                </select>
+            </div>
+
+            <button onclick="nextStep(4)" class="btn btn-primary" style="width: 100%;">Next step</button>
+        </div>
+
+        <!-- Step 4: Team Name -->
+        <div id="step4" class="form-step" style="display: none;">
+            <h1>Name your team</h1>
+            <p class="subtitle">Choose a name and friendly URL for your team. Try using the name of your organization or department.</p>
+
+            <div class="form-group">
+                <label>Team name</label>
+                <input type="text" id="teamName" required>
+            </div>
+
+            <div class="form-group">
+                <label>Team URL</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span>stackinternal.com/c/</span>
+                    <input type="text" id="teamSlug" required style="flex: 1;">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="agreeTerms" required>
+                    I agree to the Stack Overflow Internal - Free, Terms of Service and Privacy Policy.
+                </label>
+            </div>
+
+            <button onclick="createTeam()" class="btn btn-primary" style="width: 100%;">Create team</button>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" style="display: none;" class="text-center">
+            <div class="loading">
+                <div class="loading-icon"></div>
+                <h2>Setting up Stack Internal</h2>
+                <p>We'll redirect you there in a few seconds.</p>
+            </div>
+        </div>
+
+        <div id="error" class="error" style="display: none; margin-top: 16px;"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentStep = 1;
+
+        function nextStep(step) {
+            // Hide current step
+            document.getElementById(`step${currentStep}`).style.display = 'none';
+
+            // Show next step
+            document.getElementById(`step${step}`).style.display = 'block';
+            currentStep = step;
+
+            // Auto-generate slug from team name
+            if (step === 4) {
+                const teamName = document.getElementById('teamName');
+                const teamSlug = document.getElementById('teamSlug');
+
+                teamName.addEventListener('input', () => {
+                    teamSlug.value = teamName.value
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-|-$/g, '');
+                });
+            }
+        }
+
+        async function createTeam() {
+            const error = document.getElementById('error');
+            error.style.display = 'none';
+
+            // Validate
+            const agreeTerms = document.getElementById('agreeTerms').checked;
+            if (!agreeTerms) {
+                error.textContent = 'You must agree to the terms of service';
+                error.style.display = 'block';
+                return;
+            }
+
+            // Get form data
+            const userData = {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                workType: document.getElementById('workType').value,
+                role: document.getElementById('role').value
+            };
+
+            const teamData = {
+                name: document.getElementById('teamName').value,
+                slug: document.getElementById('teamSlug').value,
+                companyName: document.getElementById('companyName').value,
+                companySize: document.getElementById('companySize').value,
+                primaryGoal: document.getElementById('primaryGoal').value
+            };
+
+            // Show loading
+            document.getElementById('step4').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+
+            try {
+                // Register user
+                const registerResponse = await StackInternal.apiCall('/auth/register', {
+                    method: 'POST',
+                    body: JSON.stringify(userData)
+                });
+
+                // Create team
+                const teamResponse = await StackInternal.apiCall('/teams', {
+                    method: 'POST',
+                    body: JSON.stringify(teamData)
+                });
+
+                // Redirect to team page
+                setTimeout(() => {
+                    window.location.href = `/team/${teamData.slug}/questions`;
+                }, 2000);
+            } catch (err) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('step4').style.display = 'block';
+                error.textContent = err.message;
+                error.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

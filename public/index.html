@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stack Internal - Collaborate and share knowledge</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="landing">
+        <h1>Stack Internal</h1>
+        <p>Collaborate, connect, and grow your team's wisdom</p>
+
+        <div id="welcome-container">
+            <p class="welcome-message">Welcome! You are not on any Teams.</p>
+            <a href="/create-team.html" class="btn btn-large btn-primary">Create a free team</a>
+        </div>
+
+        <div id="teams-list" style="display: none;">
+            <h2>Your Teams</h2>
+            <div id="teams-container"></div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        // Check if user is logged in and has teams
+        async function loadUserInfo() {
+            try {
+                const userData = await StackInternal.getCurrentUser();
+
+                if (userData && userData.teams && userData.teams.length > 0) {
+                    // User has teams, show them
+                    document.getElementById('welcome-container').style.display = 'none';
+                    document.getElementById('teams-list').style.display = 'block';
+
+                    const teamsContainer = document.getElementById('teams-container');
+                    teamsContainer.innerHTML = userData.teams.map(team => `
+                        <div style="padding: 16px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 12px;">
+                            <h3><a href="/team/${team.slug}/questions">${team.name}</a></h3>
+                            <p style="color: #6a737c; margin-top: 8px;">Role: ${team.user_role}</p>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                // User not logged in, show welcome message
+                console.log('User not logged in');
+            }
+        }
+
+        loadUserInfo();
+    </script>
+</body>
+</html>
