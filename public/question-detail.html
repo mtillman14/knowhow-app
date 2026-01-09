@@ -19,20 +19,21 @@
                 Stack Internal
             </a>
 
-            <div class="team-selector" id="team-selector">
+            <a class="team-selector" id="team-selector" href="#" style="text-decoration: none; color: inherit;">
                 <div class="team-icon" id="team-icon">T</div>
                 <span id="team-name">Loading...</span>
-            </div>
+            </a>
 
             <div class="header-search">
-                <input type="text" placeholder="Search...">
+                <input type="text" placeholder="Search..." id="search-input">
             </div>
 
             <div class="header-actions">
+                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">🔍</span>
                 <button class="btn btn-primary" onclick="goToAsk()">Ask a question</button>
-                <div class="user-menu">
+                <a class="user-menu" id="user-menu" href="#" style="text-decoration: none; color: inherit; cursor: pointer;">
                     <span class="header-icon">👤</span>
-                </div>
+                </a>
             </div>
         </div>
     </div>
@@ -66,10 +67,39 @@
 
                     <div class="post-actions">
                         <a href="#" class="action-link">Share</a>
-                        <a href="#" class="action-link" id="edit-question">Edit</a>
+                        <a href="#" class="action-link" id="edit-question" onclick="showEditForm(); return false;">Edit</a>
                         <a href="#" class="action-link">Follow</a>
                         <a href="#" class="action-link">Close</a>
                         <a href="#" class="action-link" id="delete-question">Delete</a>
+                    </div>
+
+                    <!-- Edit Form (hidden by default) -->
+                    <div id="edit-form" style="display: none; margin-top: 24px;">
+                        <h3>Edit Question</h3>
+                        <div style="margin-top: 16px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Title</label>
+                            <input type="text" id="edit-title" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px; margin-bottom: 16px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Body</label>
+                            <div class="editor-container">
+                                <div class="editor-toolbar">
+                                    <button class="editor-btn" onclick="insertFormatEdit('**', '**')" title="Bold">B</button>
+                                    <button class="editor-btn" onclick="insertFormatEdit('_', '_')" title="Italic">I</button>
+                                    <button class="editor-btn" onclick="insertFormatEdit('`', '`')" title="Code">&lt;&gt;</button>
+                                    <button class="editor-btn" onclick="insertFormatEdit('[link text](', ')')" title="Link">🔗</button>
+                                </div>
+                                <textarea class="editor-textarea" id="edit-body" rows="10"></textarea>
+                            </div>
+                        </div>
+                        <div style="margin-top: 16px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Tags (comma-separated)</label>
+                            <input type="text" id="edit-tags" placeholder="e.g. javascript, node.js, express" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        </div>
+                        <div style="margin-top: 16px;">
+                            <button class="btn btn-primary" onclick="saveEdit()">Save Edits</button>
+                            <button class="btn" onclick="cancelEdit()" style="margin-left: 8px;">Cancel</button>
+                        </div>
                     </div>
 
                     <div class="question-tags" id="question-tags">
@@ -138,8 +168,35 @@
             if (!currentUser) return;
 
             await loadTeamInfo();
+
+            // Set profile link
+            document.getElementById('user-menu').href = `/team/${teamSlug}/users/${currentUser.user.id}`;
+
             await loadQuestion();
             await loadAnswers();
+            setupSearch();
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('search-input');
+            const searchIcon = document.getElementById('search-icon');
+
+            const performSearch = () => {
+                const query = searchInput.value.trim();
+                if (query) {
+                    window.location.href = `/team/${teamSlug}/questions?search=${encodeURIComponent(query)}`;
+                }
+            };
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            searchIcon.addEventListener('click', () => {
+                performSearch();
+            });
         }
 
         async function loadTeamInfo() {
@@ -147,6 +204,7 @@
                 currentTeam = await StackInternal.apiCall(`/teams/${teamSlug}`);
                 document.getElementById('team-name').textContent = currentTeam.name;
                 document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
+                document.getElementById('team-selector').href = `/team/${teamSlug}/questions`;
             } catch (error) {
                 console.error('Load team error:', error);
             }
@@ -179,7 +237,7 @@
                         ${StackInternal.createUserAvatar(currentQuestion)}
                         <div class="user-text">
                             <div>asked ${StackInternal.formatDate(currentQuestion.created_at)}</div>
-                            <a href="#" class="user-name">${currentQuestion.first_name} ${currentQuestion.last_name}</a>
+                            <a href="/team/${teamSlug}/users/${currentQuestion.user_id}" class="user-name">${currentQuestion.first_name} ${currentQuestion.last_name}</a>
                         </div>
                     </div>
                 `;
@@ -195,6 +253,14 @@
 
                 // Load comments
                 await loadComments('question', questionId);
+
+                // Show Edit button only if user is the question owner
+                const editButton = document.getElementById('edit-question');
+                if (currentQuestion.user_id === currentUser.user.id) {
+                    editButton.style.display = 'inline';
+                } else {
+                    editButton.style.display = 'none';
+                }
             } catch (error) {
                 console.error('Load question error:', error);
                 StackInternal.showNotification('Failed to load question', 'error');
@@ -214,6 +280,11 @@
                     answersList.innerHTML = '';
                 } else {
                     answersList.innerHTML = answers.map(a => renderAnswer(a)).join('');
+
+                    // Load comments for each answer
+                    for (const answer of answers) {
+                        await loadComments('answer', answer.id);
+                    }
                 }
             } catch (error) {
                 console.error('Load answers error:', error);
@@ -221,26 +292,49 @@
         }
 
         function renderAnswer(answer) {
-            const acceptedBadge = answer.is_accepted ? '<div class="accepted-badge">✓ Accepted</div>' : '';
+            const acceptedBadge = answer.is_accepted ? '<div class="accepted-badge">✓ Approved Answer</div>' : '';
+            const isOwner = currentUser && answer.user_id === currentUser.user.id;
+            const editLink = isOwner ? `<a href="#" class="action-link" onclick="showAnswerEditForm(${answer.id}); return false;">Edit</a>` : '';
 
             return `
-                <div class="answer ${answer.is_accepted ? 'accepted' : ''}">
+                <div class="answer ${answer.is_accepted ? 'accepted' : ''}" id="answer-${answer.id}">
                     <div class="vote-cell">
                         <button class="vote-btn" onclick="vote('answer-${answer.id}', 'up')">▲</button>
                         <div class="vote-count" id="answer-${answer.id}-score">${answer.score}</div>
                         <button class="vote-btn" onclick="vote('answer-${answer.id}', 'down')">▼</button>
-                        ${answer.question_owner === currentUser.user.id && !answer.is_accepted ? `<button class="vote-btn" onclick="acceptAnswer(${answer.id})" title="Accept answer">✓</button>` : ''}
+                        ${!answer.is_accepted ? `<button class="vote-btn" onclick="acceptAnswer(${answer.id})" title="Mark as approved answer" style="color: #5fa146;">✓</button>` : ''}
                     </div>
 
                     <div class="post-body">
                         ${acceptedBadge}
-                        <div class="post-content">${StackInternal.parseMarkdown(answer.body)}</div>
+                        <div class="post-content" id="answer-${answer.id}-content">${StackInternal.parseMarkdown(answer.body)}</div>
 
-                        <div class="post-actions">
+                        <div class="post-actions" id="answer-${answer.id}-actions">
                             <a href="#" class="action-link">Share</a>
-                            <a href="#" class="action-link">Edit</a>
+                            ${editLink}
                             <a href="#" class="action-link">Follow</a>
                             <a href="#" class="action-link">Delete</a>
+                        </div>
+
+                        <!-- Edit Form (hidden by default) -->
+                        <div id="answer-${answer.id}-edit-form" style="display: none; margin-top: 24px;">
+                            <h4>Edit Answer</h4>
+                            <div style="margin-top: 16px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Body</label>
+                                <div class="editor-container">
+                                    <div class="editor-toolbar">
+                                        <button class="editor-btn" onclick="insertAnswerFormatEdit(${answer.id}, '**', '**')" title="Bold">B</button>
+                                        <button class="editor-btn" onclick="insertAnswerFormatEdit(${answer.id}, '_', '_')" title="Italic">I</button>
+                                        <button class="editor-btn" onclick="insertAnswerFormatEdit(${answer.id}, '\`', '\`')" title="Code">&lt;&gt;</button>
+                                        <button class="editor-btn" onclick="insertAnswerFormatEdit(${answer.id}, '[link text](', ')')" title="Link">🔗</button>
+                                    </div>
+                                    <textarea class="editor-textarea" id="answer-${answer.id}-edit-body" rows="10">${answer.body}</textarea>
+                                </div>
+                            </div>
+                            <div style="margin-top: 16px;">
+                                <button class="btn btn-primary" onclick="saveAnswerEdit(${answer.id})">Save Edits</button>
+                                <button class="btn" onclick="cancelAnswerEdit(${answer.id})" style="margin-left: 8px;">Cancel</button>
+                            </div>
                         </div>
 
                         <div style="display: flex; justify-content: space-between; margin-top: 16px;">
@@ -250,7 +344,7 @@
                                     ${StackInternal.createUserAvatar(answer)}
                                     <div class="user-text">
                                         <div>answered ${StackInternal.formatDate(answer.created_at)}</div>
-                                        <a href="#" class="user-name">${answer.first_name} ${answer.last_name}</a>
+                                        <a href="/team/${teamSlug}/users/${answer.user_id}" class="user-name">${answer.first_name} ${answer.last_name}</a>
                                     </div>
                                 </div>
                             </div>
@@ -258,6 +352,11 @@
 
                         <div class="comments" id="answer-${answer.id}-comments"></div>
                         <div class="add-comment" onclick="showCommentForm('answer-${answer.id}')">Add a comment</div>
+                        <div id="answer-${answer.id}-comment-form" style="display: none; margin-top: 12px;">
+                            <textarea id="answer-${answer.id}-comment-text" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;" rows="3"></textarea>
+                            <button class="btn btn-primary" style="margin-top: 8px;" onclick="submitComment('answer-${answer.id}')">Add comment</button>
+                            <button class="btn" onclick="hideCommentForm('answer-${answer.id}')" style="margin-left: 8px;">Cancel</button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -296,8 +395,8 @@
         async function submitAnswer() {
             const body = document.getElementById('answer-body').value.trim();
 
-            if (body.length < 30) {
-                StackInternal.showNotification('Answer must be at least 30 characters', 'error');
+            if (!body) {
+                StackInternal.showNotification('Answer body is required', 'error');
                 return;
             }
 
@@ -318,7 +417,7 @@
         async function acceptAnswer(answerId) {
             try {
                 await StackInternal.apiCall(`/answers/${answerId}/accept`, { method: 'POST' });
-                StackInternal.showNotification('Answer accepted', 'success');
+                StackInternal.showNotification('Answer marked as approved', 'success');
                 await loadAnswers();
             } catch (error) {
                 StackInternal.showNotification(error.message, 'error');
@@ -388,6 +487,132 @@
 
         function goToAsk() {
             window.location.href = `/team/${teamSlug}/ask`;
+        }
+
+        function showEditForm() {
+            // Check if user is the question owner
+            if (currentQuestion.user_id !== currentUser.user.id) {
+                StackInternal.showNotification('Only the question owner can edit', 'error');
+                return;
+            }
+
+            // Populate form with current values
+            document.getElementById('edit-title').value = currentQuestion.title;
+            document.getElementById('edit-body').value = currentQuestion.body;
+
+            // Get tag names from the tags array
+            const tagNames = currentQuestion.tags ? currentQuestion.tags.map(t => t.name).join(', ') : '';
+            document.getElementById('edit-tags').value = tagNames;
+
+            // Hide question content and show edit form
+            document.getElementById('question-body').style.display = 'none';
+            document.querySelector('.post-actions').style.display = 'none';
+            document.getElementById('question-tags').style.display = 'none';
+            document.getElementById('edit-form').style.display = 'block';
+        }
+
+        function cancelEdit() {
+            // Show question content and hide edit form
+            document.getElementById('question-body').style.display = 'block';
+            document.querySelector('.post-actions').style.display = 'block';
+            document.getElementById('question-tags').style.display = 'flex';
+            document.getElementById('edit-form').style.display = 'none';
+        }
+
+        async function saveEdit() {
+            const title = document.getElementById('edit-title').value.trim();
+            const body = document.getElementById('edit-body').value.trim();
+            const tags = document.getElementById('edit-tags').value.trim();
+
+            if (!title || !body) {
+                StackInternal.showNotification('Title and body are required', 'error');
+                return;
+            }
+
+            try {
+                await StackInternal.apiCall(`/questions/${questionId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ title, body, tags })
+                });
+
+                StackInternal.showNotification('Question updated successfully', 'success');
+
+                // Reload the question to show updated content
+                await loadQuestion();
+
+                // Hide edit form and show content
+                cancelEdit();
+            } catch (error) {
+                StackInternal.showNotification(error.message, 'error');
+            }
+        }
+
+        function insertFormatEdit(before, after) {
+            const textarea = document.getElementById('edit-body');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const selectedText = text.substring(start, end);
+
+            textarea.value = text.substring(0, start) + before + selectedText + after + text.substring(end);
+            textarea.focus();
+            textarea.setSelectionRange(start + before.length, end + before.length);
+        }
+
+        function showAnswerEditForm(answerId) {
+            // Hide answer content and actions
+            document.getElementById(`answer-${answerId}-content`).style.display = 'none';
+            document.getElementById(`answer-${answerId}-actions`).style.display = 'none';
+
+            // Show edit form
+            document.getElementById(`answer-${answerId}-edit-form`).style.display = 'block';
+        }
+
+        function cancelAnswerEdit(answerId) {
+            // Show answer content and actions
+            document.getElementById(`answer-${answerId}-content`).style.display = 'block';
+            document.getElementById(`answer-${answerId}-actions`).style.display = 'block';
+
+            // Hide edit form
+            document.getElementById(`answer-${answerId}-edit-form`).style.display = 'none';
+        }
+
+        async function saveAnswerEdit(answerId) {
+            const body = document.getElementById(`answer-${answerId}-edit-body`).value.trim();
+
+            if (!body) {
+                StackInternal.showNotification('Answer body is required', 'error');
+                return;
+            }
+
+            try {
+                await StackInternal.apiCall(`/answers/${answerId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ body })
+                });
+
+                StackInternal.showNotification('Answer updated successfully', 'success');
+
+                // Reload answers to show updated content
+                await loadAnswers();
+
+                // Hide edit form
+                cancelAnswerEdit(answerId);
+            } catch (error) {
+                StackInternal.showNotification(error.message, 'error');
+            }
+        }
+
+        function insertAnswerFormatEdit(answerId, before, after) {
+            const textarea = document.getElementById(`answer-${answerId}-edit-body`);
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const selectedText = text.substring(start, end);
+
+            textarea.value = text.substring(0, start) + before + selectedText + after + text.substring(end);
+            textarea.focus();
+            textarea.setSelectionRange(start + before.length, end + before.length);
         }
 
         init();

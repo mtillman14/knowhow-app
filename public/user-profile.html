@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - Stack Internal</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <svg viewBox="0 0 32 32" fill="currentColor">
+                    <path d="M26 16v10H6V16H4v12h24V16z"/>
+                    <path d="M6 10v6h20v-6H6zm18 4H8v-2h16v2z"/>
+                    <path d="M6 4v4h20V4H6zm18 2H8V6h16v2z"/>
+                </svg>
+                Stack Internal
+            </a>
+
+            <a class="team-selector" id="team-selector" href="#" style="text-decoration: none; color: inherit;">
+                <div class="team-icon" id="team-icon">T</div>
+                <span id="team-name">Loading...</span>
+            </a>
+
+            <div class="header-search">
+                <input type="text" placeholder="Search..." id="search-input">
+            </div>
+
+            <div class="header-actions">
+                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">🔍</span>
+                <button class="btn btn-primary" onclick="goToAsk()">Ask a question</button>
+                <a class="user-menu" id="user-menu-icon" href="#" style="text-decoration: none; color: inherit; cursor: pointer;">
+                    <span class="header-icon">👤</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="content">
+            <!-- User Header -->
+            <div style="display: flex; align-items: flex-start; gap: 24px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #d6d9dc;">
+                <div class="user-avatar" id="user-avatar" style="width: 128px; height: 128px; font-size: 48px;"></div>
+                <div style="flex: 1;">
+                    <h1 id="user-name" style="font-size: 32px; margin-bottom: 8px;">Loading...</h1>
+                    <div id="user-meta" style="color: #6a737c; margin-bottom: 16px;"></div>
+                    <div id="user-bio" style="margin-top: 12px;"></div>
+                </div>
+            </div>
+
+            <!-- Activity Tabs -->
+            <div style="margin-bottom: 24px;">
+                <div class="filters">
+                    <button class="filter-btn active" onclick="showTab('questions')">Questions (<span id="question-count">0</span>)</button>
+                    <button class="filter-btn" onclick="showTab('answers')">Answers (<span id="answer-count">0</span>)</button>
+                </div>
+            </div>
+
+            <!-- Questions Tab -->
+            <div id="questions-tab">
+                <div id="questions-list"></div>
+            </div>
+
+            <!-- Answers Tab -->
+            <div id="answers-tab" style="display: none;">
+                <div id="answers-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        let profileUser = null;
+        let currentTeam = null;
+
+        const pathParts = window.location.pathname.split('/');
+        const teamSlug = pathParts[2];
+        const userId = pathParts[4];
+
+        async function init() {
+            currentUser = await StackInternal.checkAuth();
+            if (!currentUser) return;
+
+            await loadTeamInfo();
+
+            // Set profile link
+            document.getElementById('user-menu-icon').href = `/team/${teamSlug}/users/${currentUser.user.id}`;
+
+            await loadUserProfile();
+            setupSearch();
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('search-input');
+            const searchIcon = document.getElementById('search-icon');
+
+            const performSearch = () => {
+                const query = searchInput.value.trim();
+                if (query) {
+                    window.location.href = `/team/${teamSlug}/questions?search=${encodeURIComponent(query)}`;
+                }
+            };
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            searchIcon.addEventListener('click', () => {
+                performSearch();
+            });
+        }
+
+        async function loadTeamInfo() {
+            try {
+                currentTeam = await StackInternal.apiCall(`/teams/${teamSlug}`);
+                document.getElementById('team-name').textContent = currentTeam.name;
+                document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
+                document.getElementById('team-selector').href = `/team/${teamSlug}/questions`;
+            } catch (error) {
+                console.error('Load team error:', error);
+            }
+        }
+
+        async function loadUserProfile() {
+            try {
+                profileUser = await StackInternal.apiCall(`/users/${userId}?teamId=${currentTeam.id}`);
+
+                const initials = StackInternal.getUserInitials(profileUser.first_name, profileUser.last_name);
+                document.getElementById('user-avatar').textContent = initials;
+                document.getElementById('user-name').textContent = `${profileUser.first_name} ${profileUser.last_name}`;
+
+                const metaParts = [];
+                if (profileUser.work_type) metaParts.push(profileUser.work_type);
+                if (profileUser.role) metaParts.push(profileUser.role);
+                if (profileUser.location) metaParts.push(profileUser.location);
+                metaParts.push(`Member since ${StackInternal.formatDate(profileUser.created_at)}`);
+
+                document.getElementById('user-meta').textContent = metaParts.join(' • ');
+
+                if (profileUser.bio) {
+                    document.getElementById('user-bio').innerHTML = `<p>${profileUser.bio}</p>`;
+                }
+
+                document.title = `${profileUser.first_name} ${profileUser.last_name} - Stack Internal`;
+
+                // Display questions and answers
+                document.getElementById('question-count').textContent = profileUser.questions.length;
+                document.getElementById('answer-count').textContent = profileUser.answers.length;
+
+                renderQuestions();
+                renderAnswers();
+            } catch (error) {
+                console.error('Load user profile error:', error);
+                StackInternal.showNotification('Failed to load user profile', 'error');
+            }
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-list');
+
+            if (profileUser.questions.length === 0) {
+                container.innerHTML = '<p style="color: #6a737c; text-align: center; padding: 40px;">No questions yet.</p>';
+                return;
+            }
+
+            container.innerHTML = profileUser.questions.map(q => {
+                const tags = q.tags ? q.tags.split(',').filter(t => t).map(tag =>
+                    `<a href="/team/${teamSlug}/questions?tag=${encodeURIComponent(tag)}" class="tag">${tag}</a>`
+                ).join('') : '';
+
+                return `
+                    <div class="question-item">
+                        <div class="question-stats">
+                            <div class="stat">
+                                <span class="stat-value">${q.score}</span>
+                                <span class="stat-label">votes</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-value">${q.answer_count}</span>
+                                <span class="stat-label">answer${q.answer_count !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-value">${q.view_count}</span>
+                                <span class="stat-label">view${q.view_count !== 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+                        <div class="question-content">
+                            <h3 class="question-title">
+                                <a href="/team/${teamSlug}/questions/${q.id}">${q.title}</a>
+                            </h3>
+                            <div class="question-excerpt">
+                                ${q.body.substring(0, 200)}${q.body.length > 200 ? '...' : ''}
+                            </div>
+                            <div class="question-tags">
+                                ${tags}
+                            </div>
+                            <div class="question-meta">
+                                <span>asked ${StackInternal.formatDate(q.created_at)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderAnswers() {
+            const container = document.getElementById('answers-list');
+
+            if (profileUser.answers.length === 0) {
+                container.innerHTML = '<p style="color: #6a737c; text-align: center; padding: 40px;">No answers yet.</p>';
+                return;
+            }
+
+            container.innerHTML = profileUser.answers.map(a => `
+                <div style="padding: 16px 0; border-bottom: 1px solid #d6d9dc;">
+                    <div style="display: flex; gap: 16px; align-items: flex-start;">
+                        <div style="min-width: 60px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: 600; color: ${a.score > 0 ? '#5fa146' : '#6a737c'};">${a.score}</div>
+                            <div style="font-size: 12px; color: #6a737c;">votes</div>
+                            ${a.is_accepted ? '<div style="margin-top: 8px; color: #5fa146; font-weight: 600;">✓ Approved</div>' : ''}
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 style="margin-bottom: 12px;">
+                                <a href="/team/${teamSlug}/questions/${a.question_id}" style="color: #0077cc; text-decoration: none; font-size: 18px;">${a.question_title}</a>
+                            </h3>
+                            <div style="color: #6a737c; margin-bottom: 8px;">
+                                ${a.body.substring(0, 300)}${a.body.length > 300 ? '...' : ''}
+                            </div>
+                            <div style="font-size: 13px; color: #6a737c;">
+                                answered ${StackInternal.formatDate(a.created_at)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showTab(tab) {
+            // Update buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Show/hide tabs
+            if (tab === 'questions') {
+                document.getElementById('questions-tab').style.display = 'block';
+                document.getElementById('answers-tab').style.display = 'none';
+            } else {
+                document.getElementById('questions-tab').style.display = 'none';
+                document.getElementById('answers-tab').style.display = 'block';
+            }
+        }
+
+        function goToAsk() {
+            window.location.href = `/team/${teamSlug}/ask`;
+        }
+
+        init();
+    </script>
+</body>
+</html>

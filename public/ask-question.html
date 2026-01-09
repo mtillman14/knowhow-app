@@ -19,13 +19,21 @@
                 Stack Internal
             </a>
 
-            <div class="team-selector" id="team-selector">
+            <a class="team-selector" id="team-selector" href="#" style="text-decoration: none; color: inherit;">
                 <div class="team-icon" id="team-icon">T</div>
                 <span id="team-name">Loading...</span>
+            </a>
+
+            <div class="header-search">
+                <input type="text" placeholder="Search..." id="search-input">
             </div>
 
             <div class="header-actions">
+                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">🔍</span>
                 <button class="btn" onclick="goBack()">Cancel</button>
+                <a class="user-menu" id="user-menu" href="#" style="text-decoration: none; color: inherit; cursor: pointer;">
+                    <span class="header-icon">👤</span>
+                </a>
             </div>
         </div>
     </div>
@@ -159,9 +167,36 @@
             if (!user) return;
 
             await loadTeamInfo();
+
+            // Set profile link
+            document.getElementById('user-menu').href = `/team/${teamSlug}/users/${user.user.id}`;
+
             setupTagInput();
             setupMemberSearch();
             setupAnswerToggle();
+            setupSearch();
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('search-input');
+            const searchIcon = document.getElementById('search-icon');
+
+            const performSearch = () => {
+                const query = searchInput.value.trim();
+                if (query) {
+                    window.location.href = `/team/${teamSlug}/questions?search=${encodeURIComponent(query)}`;
+                }
+            };
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            searchIcon.addEventListener('click', () => {
+                performSearch();
+            });
         }
 
         async function loadTeamInfo() {
@@ -169,6 +204,7 @@
                 currentTeam = await StackInternal.apiCall(`/teams/${teamSlug}`);
                 document.getElementById('team-name').textContent = currentTeam.name;
                 document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
+                document.getElementById('team-selector').href = `/team/${teamSlug}/questions`;
             } catch (error) {
                 console.error('Load team error:', error);
                 StackInternal.showNotification('Failed to load team information', 'error');

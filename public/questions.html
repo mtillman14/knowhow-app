@@ -19,21 +19,21 @@
                 Stack Internal
             </a>
 
-            <div class="team-selector" id="team-selector">
+            <a class="team-selector" id="team-selector" href="#" style="text-decoration: none; color: inherit;">
                 <div class="team-icon" id="team-icon">T</div>
                 <span id="team-name">Loading...</span>
-            </div>
+            </a>
 
             <div class="header-search">
                 <input type="text" placeholder="Search..." id="search-input">
             </div>
 
             <div class="header-actions">
-                <span class="header-icon" title="Search">🔍</span>
+                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">🔍</span>
                 <button class="btn btn-primary" onclick="window.location.href='ask'">Ask a question</button>
-                <div class="user-menu" id="user-menu">
+                <a class="user-menu" id="user-menu" href="#" style="text-decoration: none; color: inherit; cursor: pointer;">
                     <span class="header-icon">👤</span>
-                </div>
+                </a>
             </div>
         </div>
     </div>
@@ -130,6 +130,24 @@
             // Load team info
             await loadTeamInfo();
 
+            // Set profile link
+            document.getElementById('user-menu').href = `/team/${teamSlug}/users/${user.user.id}`;
+
+            // Check for search and tag parameters in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchQuery = urlParams.get('search');
+            if (searchQuery) {
+                document.getElementById('search-input').value = searchQuery;
+                currentFilters.search = searchQuery;
+            }
+
+            const tagQuery = urlParams.get('tag');
+            if (tagQuery) {
+                currentFilters.tag = tagQuery;
+                // Update page title to show filter
+                document.getElementById('page-title').textContent = `Questions tagged [${tagQuery}]`;
+            }
+
             // Load questions
             await loadQuestions();
 
@@ -146,6 +164,7 @@
 
                 document.getElementById('team-name').textContent = currentTeam.name;
                 document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
+                document.getElementById('team-selector').href = `/team/${teamSlug}/questions`;
                 document.title = `Questions - ${currentTeam.name}`;
             } catch (error) {
                 StackInternal.showNotification('Failed to load team info', 'error');
@@ -217,7 +236,7 @@
                         <div class="question-meta">
                             <div class="user-info">
                                 ${StackInternal.createUserAvatar(q)}
-                                <span>${q.first_name} ${q.last_name}</span>
+                                <a href="/team/${teamSlug}/users/${q.user_id}" style="color: #0077cc; text-decoration: none;">${q.first_name} ${q.last_name}</a>
                             </div>
                             <span>asked ${StackInternal.formatDate(q.created_at)}</span>
                         </div>
@@ -269,19 +288,29 @@
 
         function setupSearch() {
             const searchInput = document.getElementById('search-input');
-            let searchTimeout;
+            const searchIcon = document.getElementById('search-icon');
 
-            searchInput.addEventListener('input', () => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    if (searchInput.value.trim()) {
-                        currentFilters.search = searchInput.value.trim();
-                    } else {
-                        delete currentFilters.search;
-                    }
-                    currentPage = 1;
-                    loadQuestions();
-                }, 500);
+            // Function to perform search
+            const performSearch = () => {
+                if (searchInput.value.trim()) {
+                    currentFilters.search = searchInput.value.trim();
+                } else {
+                    delete currentFilters.search;
+                }
+                currentPage = 1;
+                loadQuestions();
+            };
+
+            // Search on Enter key
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            // Search on magnifying glass click
+            searchIcon.addEventListener('click', () => {
+                performSearch();
             });
         }
 

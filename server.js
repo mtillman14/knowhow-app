@@ -59,6 +59,10 @@ app.get('/team/:slug/ask', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'ask-question.html'));
 });
 
+app.get('/team/:slug/users/:id', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'user-profile.html'));
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);

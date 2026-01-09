@@ -491,6 +491,11 @@ body {
     color: var(--orange);
 }
 
+.vote-btn[title*="approved"]:hover {
+    background: #e8f5e9;
+    color: var(--green);
+}
+
 .vote-count {
     font-size: 24px;
     font-weight: 600;
@@ -600,15 +605,17 @@ body {
     margin-right: -24px;
     padding-left: 24px;
     padding-right: 24px;
+    border-left: 4px solid var(--green);
 }
 
 .accepted-badge {
     background: var(--green);
     color: var(--white);
-    padding: 4px 8px;
+    padding: 6px 12px;
     border-radius: 3px;
-    font-size: 12px;
-    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
     display: inline-block;
 }
 

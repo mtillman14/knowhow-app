@@ -8,6 +8,7 @@ const { authenticateToken } = require('../middleware/auth');
 router.get('/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
+        const { teamId } = req.query;
 
         const [users] = await db.query(
             'SELECT id, email, first_name, last_name, work_type, role, avatar_url, bio, location, created_at FROM users WHERE id = ?',
@@ -27,9 +28,42 @@ router.get('/:id', authenticateToken, async (req, res) => {
             [id]
         );
 
+        let questions = [];
+        let answers = [];
+
+        // If teamId provided, get user's activity in that team
+        if (teamId) {
+            // Get user's questions in this team
+            const [userQuestions] = await db.query(
+                `SELECT q.*,
+                        GROUP_CONCAT(DISTINCT t.name) as tags
+                 FROM questions q
+                 LEFT JOIN question_tags qt ON q.id = qt.question_id
+                 LEFT JOIN tags t ON qt.tag_id = t.id
+                 WHERE q.user_id = ? AND q.team_id = ?
+                 GROUP BY q.id
+                 ORDER BY q.created_at DESC`,
+                [id, teamId]
+            );
+            questions = userQuestions;
+
+            // Get user's answers in this team
+            const [userAnswers] = await db.query(
+                `SELECT a.*, q.title as question_title, q.id as question_id
+                 FROM answers a
+                 JOIN questions q ON a.question_id = q.id
+                 WHERE a.user_id = ? AND q.team_id = ?
+                 ORDER BY a.created_at DESC`,
+                [id, teamId]
+            );
+            answers = userAnswers;
+        }
+
         res.json({
             ...users[0],
-            teams
+            teams,
+            questions,
+            answers
         });
     } catch (error) {
         console.error('Get user error:', error);

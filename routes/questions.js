@@ -262,16 +262,17 @@ router.put('/:id',
     authenticateToken,
     [
         body('title').optional().trim().notEmpty().isLength({ max: 500 }),
-        body('body').optional().trim().notEmpty()
+        body('body').optional().trim().notEmpty(),
+        body('tags').optional().isString()
     ],
     async (req, res) => {
         try {
             const { id } = req.params;
-            const { title, body } = req.body;
+            const { title, body, tags } = req.body;
 
             // Check if user owns the question
             const [questions] = await db.query(
-                'SELECT user_id FROM questions WHERE id = ?',
+                'SELECT user_id, team_id FROM questions WHERE id = ?',
                 [id]
             );
 
@@ -282,6 +283,8 @@ router.put('/:id',
             if (questions[0].user_id !== req.user.userId) {
                 return res.status(403).json({ error: 'Not authorized to edit this question' });
             }
+
+            const teamId = questions[0].team_id;
 
             // Update question
             const updates = [];
@@ -296,15 +299,75 @@ router.put('/:id',
                 params.push(body);
             }
 
-            if (updates.length === 0) {
+            if (updates.length === 0 && !tags) {
                 return res.status(400).json({ error: 'No updates provided' });
             }
 
-            params.push(id);
-            await db.query(
-                `UPDATE questions SET ${updates.join(', ')}, last_activity_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                params
-            );
+            if (updates.length > 0) {
+                params.push(id);
+                await db.query(
+                    `UPDATE questions SET ${updates.join(', ')}, last_activity_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                    params
+                );
+            }
+
+            // Update tags if provided
+            if (tags !== undefined) {
+                // Parse tags (comma-separated string)
+                const tagArray = tags.split(',')
+                    .map(t => t.trim())
+                    .filter(t => t.length > 0)
+                    .slice(0, 5); // Max 5 tags
+
+                // Get current tags to update counts
+                const [currentTags] = await db.query(
+                    `SELECT tag_id FROM question_tags WHERE question_id = ?`,
+                    [id]
+                );
+
+                // Decrement counts for old tags
+                for (const currentTag of currentTags) {
+                    await db.query(
+                        'UPDATE tags SET question_count = GREATEST(0, question_count - 1) WHERE id = ?',
+                        [currentTag.tag_id]
+                    );
+                }
+
+                // Remove old tags
+                await db.query('DELETE FROM question_tags WHERE question_id = ?', [id]);
+
+                // Add new tags
+                for (const tagName of tagArray) {
+                    // Get or create tag
+                    let [existingTags] = await db.query(
+                        'SELECT id FROM tags WHERE team_id = ? AND name = ?',
+                        [teamId, tagName.toLowerCase()]
+                    );
+
+                    let tagId;
+                    if (existingTags.length === 0) {
+                        const [tagResult] = await db.query(
+                            'INSERT INTO tags (team_id, name) VALUES (?, ?)',
+                            [teamId, tagName.toLowerCase()]
+                        );
+                        tagId = tagResult.insertId;
+                    } else {
+                        tagId = existingTags[0].id;
+                    }
+
+                    // Link tag to question
+                    await db.query(
+                        'INSERT INTO question_tags (question_id, tag_id) VALUES (?, ?)',
+                        [id, tagId]
+                    );
+
+                    // Update tag count
+                    await db.query(
+                        'UPDATE tags SET question_count = question_count + 1 WHERE id = ?',
+                        [tagId]
+                    );
+                }
+            }
 
             res.json({ message: 'Question updated successfully' });
         } catch (error) {
