@@ -123,12 +123,16 @@ router.get('/:slug/members', authenticateToken, async (req, res) => {
         }
 
         const [members] = await db.query(
-            `SELECT u.id, u.email, u.first_name, u.last_name, u.avatar_url, tm.role, tm.joined_at
+            `SELECT u.id, u.email, u.first_name, u.last_name, u.avatar_url, u.bio, tm.role, tm.joined_at,
+                    (SELECT COUNT(*) FROM questions WHERE user_id = u.id AND team_id = ?) as question_count,
+                    (SELECT COUNT(*) FROM answers a
+                     JOIN questions q ON a.question_id = q.id
+                     WHERE a.user_id = u.id AND q.team_id = ?) as answer_count
              FROM users u
              JOIN team_members tm ON u.id = tm.user_id
              WHERE tm.team_id = ?
              ORDER BY tm.joined_at ASC`,
-            [teams[0].id]
+            [teamId, teamId, teamId]
         );
 
         res.json(members);

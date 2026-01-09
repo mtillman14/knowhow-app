@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Members - Stack Internal</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <svg viewBox="0 0 32 32" fill="currentColor">
+                    <path d="M26 16v10H6V16H4v12h24V16z"/>
+                    <path d="M6 10v6h20v-6H6zm18 4H8v-2h16v2z"/>
+                    <path d="M6 4v4h20V4H6zm18 2H8V6h16v2z"/>
+                </svg>
+                Stack Internal
+            </a>
+
+            <a class="team-selector" id="team-selector" href="#" style="text-decoration: none; color: inherit;">
+                <div class="team-icon" id="team-icon">T</div>
+                <span id="team-name">Loading...</span>
+            </a>
+
+            <div class="header-search">
+                <input type="text" placeholder="Search..." id="search-input">
+            </div>
+
+            <div class="header-actions">
+                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">🔍</span>
+                <button class="btn btn-primary" onclick="goToAsk()">Ask a question</button>
+                <a class="user-menu" id="user-menu" href="#" style="text-decoration: none; color: inherit; cursor: pointer;">
+                    <span class="header-icon">👤</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div style="border-bottom: 1px solid #d6d9dc; background: #f8f9f9;">
+        <div class="container">
+            <div style="display: flex; gap: 0;">
+                <a href="#" id="nav-questions" class="nav-tab">Questions</a>
+                <a href="#" id="nav-members" class="nav-tab active">Members</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="content">
+            <div style="margin-bottom: 24px;">
+                <h1>Members</h1>
+                <p style="color: #6a737c; margin-top: 8px;">View all team members and their contributions</p>
+            </div>
+
+            <!-- Sort Options -->
+            <div style="margin-bottom: 24px;">
+                <label style="margin-right: 8px; color: #6a737c;">Sort by:</label>
+                <select id="sort-select" onchange="sortMembers()" style="padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                    <option value="newest">Newest members</option>
+                    <option value="oldest">Oldest members</option>
+                    <option value="name">Name (A-Z)</option>
+                    <option value="questions">Most questions</option>
+                    <option value="answers">Most answers</option>
+                </select>
+            </div>
+
+            <!-- Members Grid -->
+            <div id="members-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+                <div class="loading">
+                    <div class="loading-icon"></div>
+                    <p>Loading members...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        let currentTeam = null;
+        let allMembers = [];
+
+        const pathParts = window.location.pathname.split('/');
+        const teamSlug = pathParts[2];
+
+        async function init() {
+            currentUser = await StackInternal.checkAuth();
+            if (!currentUser) return;
+
+            await loadTeamInfo();
+
+            // Set profile link
+            document.getElementById('user-menu').href = `/team/${teamSlug}/users/${currentUser.user.id}`;
+
+            await loadMembers();
+            setupSearch();
+            setupNavigation();
+        }
+
+        function setupNavigation() {
+            document.getElementById('nav-questions').href = `/team/${teamSlug}/questions`;
+            document.getElementById('nav-members').href = `/team/${teamSlug}/members`;
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('search-input');
+            const searchIcon = document.getElementById('search-icon');
+
+            const performSearch = () => {
+                const query = searchInput.value.trim();
+                if (query) {
+                    window.location.href = `/team/${teamSlug}/questions?search=${encodeURIComponent(query)}`;
+                }
+            };
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            searchIcon.addEventListener('click', () => {
+                performSearch();
+            });
+        }
+
+        async function loadTeamInfo() {
+            try {
+                currentTeam = await StackInternal.apiCall(`/teams/${teamSlug}`);
+                document.getElementById('team-name').textContent = currentTeam.name;
+                document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
+                document.getElementById('team-selector').href = `/team/${teamSlug}/questions`;
+                document.title = `Members - ${currentTeam.name}`;
+            } catch (error) {
+                console.error('Load team error:', error);
+            }
+        }
+
+        async function loadMembers() {
+            try {
+                allMembers = await StackInternal.apiCall(`/teams/${teamSlug}/members`);
+                renderMembers(allMembers);
+            } catch (error) {
+                console.error('Load members error:', error);
+                StackInternal.showNotification('Failed to load members', 'error');
+            }
+        }
+
+        function sortMembers() {
+            const sortBy = document.getElementById('sort-select').value;
+            let sorted = [...allMembers];
+
+            switch(sortBy) {
+                case 'newest':
+                    sorted.sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
+                    break;
+                case 'oldest':
+                    sorted.sort((a, b) => new Date(a.joined_at) - new Date(b.joined_at));
+                    break;
+                case 'name':
+                    sorted.sort((a, b) => {
+                        const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
+                        const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
+                        return nameA.localeCompare(nameB);
+                    });
+                    break;
+                case 'questions':
+                    sorted.sort((a, b) => b.question_count - a.question_count);
+                    break;
+                case 'answers':
+                    sorted.sort((a, b) => b.answer_count - a.answer_count);
+                    break;
+            }
+
+            renderMembers(sorted);
+        }
+
+        function renderMembers(members) {
+            const container = document.getElementById('members-list');
+
+            if (members.length === 0) {
+                container.innerHTML = '<p style="color: #6a737c; text-align: center; padding: 40px;">No members found.</p>';
+                return;
+            }
+
+            container.innerHTML = members.map(member => {
+                const initials = StackInternal.getUserInitials(member.first_name, member.last_name);
+                const roleColor = member.role === 'admin' ? '#0077cc' : '#6a737c';
+                const roleBadge = `<span style="background: ${roleColor}; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase;">${member.role}</span>`;
+
+                return `
+                    <div class="member-card" onclick="window.location.href='/team/${teamSlug}/users/${member.id}'" style="cursor: pointer;">
+                        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+                            <div class="user-avatar" style="width: 64px; height: 64px; font-size: 24px; flex-shrink: 0;">${initials}</div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    ${member.first_name} ${member.last_name}
+                                </div>
+                                ${roleBadge}
+                            </div>
+                        </div>
+
+                        ${member.bio ? `<p style="color: #6a737c; font-size: 13px; margin-bottom: 12px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${member.bio}</p>` : ''}
+
+                        <div style="display: flex; gap: 16px; padding-top: 12px; border-top: 1px solid #e3e6e8; font-size: 13px;">
+                            <div>
+                                <div style="font-weight: 600; color: #0077cc;">${member.question_count}</div>
+                                <div style="color: #6a737c;">question${member.question_count !== 1 ? 's' : ''}</div>
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; color: #0077cc;">${member.answer_count}</div>
+                                <div style="color: #6a737c;">answer${member.answer_count !== 1 ? 's' : ''}</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 12px; font-size: 12px; color: #9199a1;">
+                            Member since ${StackInternal.formatDate(member.joined_at)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function goToAsk() {
+            window.location.href = `/team/${teamSlug}/ask`;
+        }
+
+        init();
+    </script>
+
+    <style>
+        .member-card {
+            background: white;
+            border: 1px solid #d6d9dc;
+            border-radius: 5px;
+            padding: 16px;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .member-card:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: #b3b8bd;
+        }
+    </style>
+</body>
+</html>

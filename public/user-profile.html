@@ -38,6 +38,16 @@
         </div>
     </div>
 
+    <!-- Navigation Tabs -->
+    <div style="border-bottom: 1px solid #d6d9dc; background: #f8f9f9;">
+        <div class="container">
+            <div style="display: flex; gap: 0;">
+                <a href="#" id="nav-questions" class="nav-tab">Questions</a>
+                <a href="#" id="nav-members" class="nav-tab">Members</a>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Content -->
     <div class="container">
         <div class="content">
@@ -92,6 +102,12 @@
 
             await loadUserProfile();
             setupSearch();
+            setupNavigation();
+        }
+
+        function setupNavigation() {
+            document.getElementById('nav-questions').href = `/team/${teamSlug}/questions`;
+            document.getElementById('nav-members').href = `/team/${teamSlug}/members`;
         }
 
         function setupSearch() {

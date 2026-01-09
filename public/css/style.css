@@ -764,3 +764,25 @@ body {
         padding: 24px;
     }
 }
+
+/* Navigation Tabs */
+.nav-tab {
+    display: block;
+    padding: 12px 16px;
+    color: var(--text-gray);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.2s, color 0.2s;
+    font-weight: 500;
+}
+
+.nav-tab:hover {
+    color: var(--black);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.nav-tab.active {
+    color: var(--black);
+    border-bottom-color: var(--orange);
+    font-weight: 600;
+}
