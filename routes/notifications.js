@@ -65,6 +65,21 @@ router.get('/unread/count', authenticateToken, async (req, res) => {
     }
 });
 
+// Mark all notifications as read (must be before /:id routes)
+router.put('/read-all', authenticateToken, async (req, res) => {
+    try {
+        await db.query(
+            'UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE',
+            [req.user.userId]
+        );
+
+        res.json({ message: 'All notifications marked as read' });
+    } catch (error) {
+        console.error('Mark all read error:', error);
+        res.status(500).json({ error: 'Failed to mark notifications as read' });
+    }
+});
+
 // Mark notification as read
 router.put('/:id/read', authenticateToken, async (req, res) => {
     try {
@@ -93,21 +108,6 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Mark read error:', error);
         res.status(500).json({ error: 'Failed to mark notification as read' });
-    }
-});
-
-// Mark all notifications as read
-router.put('/read-all', authenticateToken, async (req, res) => {
-    try {
-        await db.query(
-            'UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE',
-            [req.user.userId]
-        );
-
-        res.json({ message: 'All notifications marked as read' });
-    } catch (error) {
-        console.error('Mark all read error:', error);
-        res.status(500).json({ error: 'Failed to mark notifications as read' });
     }
 });
 
