@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const { createNotification } = require('./notifications');
 
 // Get answers for a question
 router.get('/question/:questionId', async (req, res) => {
@@ -63,7 +64,7 @@ router.post('/',
 
             // Verify question exists and user is team member
             const [questions] = await db.query(
-                'SELECT team_id FROM questions WHERE id = ?',
+                'SELECT team_id, user_id, is_closed FROM questions WHERE id = ?',
                 [questionId]
             );
 
@@ -71,15 +72,25 @@ router.post('/',
                 return res.status(404).json({ error: 'Question not found' });
             }
 
-            const teamId = questions[0].team_id;
+            const question = questions[0];
+            const teamId = question.team_id;
 
             const [membership] = await db.query(
-                'SELECT * FROM team_members WHERE user_id = ? AND team_id = ?',
+                'SELECT role FROM team_members WHERE user_id = ? AND team_id = ?',
                 [req.user.userId, teamId]
             );
 
             if (membership.length === 0) {
                 return res.status(403).json({ error: 'Not a member of this team' });
+            }
+
+            // Check if question is closed (allow owner and admin to still answer)
+            if (question.is_closed) {
+                const isOwner = question.user_id === req.user.userId;
+                const isAdmin = membership[0].role === 'admin';
+                if (!isOwner && !isAdmin) {
+                    return res.status(403).json({ error: 'This question is closed and not accepting new answers' });
+                }
             }
 
             // Create answer
@@ -93,6 +104,15 @@ router.post('/',
                 'UPDATE questions SET answer_count = answer_count + 1, last_activity_at = CURRENT_TIMESTAMP WHERE id = ?',
                 [questionId]
             );
+
+            // Notify question author about new answer
+            await createNotification({
+                userId: question.user_id,
+                actorId: req.user.userId,
+                questionId: questionId,
+                answerId: result.insertId,
+                type: 'answer'
+            });
 
             res.status(201).json({
                 message: 'Answer created successfully',
@@ -235,6 +255,15 @@ router.post('/:id/accept', authenticateToken, async (req, res) => {
             'UPDATE answers SET is_accepted = 1 WHERE id = ?',
             [id]
         );
+
+        // Notify answer author that their answer was accepted
+        await createNotification({
+            userId: answer.user_id,
+            actorId: req.user.userId,
+            questionId: answer.question_id,
+            answerId: parseInt(id),
+            type: 'accepted'
+        });
 
         res.json({ message: 'Answer marked as approved successfully' });
     } catch (error) {

@@ -5,22 +5,16 @@ async function initializeDatabase() {
     let connection;
 
     try {
-        // Connect without selecting a database
+        // Connect to the database
         connection = await mysql.createConnection({
             host: process.env.DB_HOST || 'localhost',
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD || '',
-            port: process.env.DB_PORT || 3306
+            port: process.env.DB_PORT || 3306,
+            database: process.env.DB_NAME || 'knowhow'
         });
 
-        console.log('Connected to MySQL server');
-
-        // Create database if it doesn't exist
-        await connection.query(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME || 'stack_internal'}`);
-        console.log(`✓ Database '${process.env.DB_NAME || 'stack_internal'}' ready`);
-
-        // Use the database
-        await connection.query(`USE ${process.env.DB_NAME || 'stack_internal'}`);
+        console.log(`✓ Connected to database '${process.env.DB_NAME || 'knowhow'}'`);
 
         // Create tables
         const tables = [
@@ -159,18 +153,22 @@ async function initializeDatabase() {
                 INDEX idx_tag (tag_id)
             )`,
 
-            // Notifications table (for "Ask team members" feature)
+            // Notifications table (for in-app notifications)
             `CREATE TABLE IF NOT EXISTS notifications (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 user_id INT NOT NULL,
+                actor_id INT,
                 question_id INT,
                 answer_id INT,
-                type ENUM('mention', 'answer', 'comment', 'upvote') NOT NULL,
+                comment_id INT,
+                type ENUM('mention', 'answer', 'comment', 'upvote', 'accepted') NOT NULL,
                 is_read BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
                 FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
                 FOREIGN KEY (answer_id) REFERENCES answers(id) ON DELETE CASCADE,
+                FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
                 INDEX idx_user_read (user_id, is_read),
                 INDEX idx_created (created_at)
             )`,
@@ -185,6 +183,35 @@ async function initializeDatabase() {
                 FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
                 UNIQUE KEY unique_bookmark (user_id, question_id),
                 INDEX idx_user (user_id)
+            )`,
+
+            // Question follows (for follow feature)
+            `CREATE TABLE IF NOT EXISTS question_follows (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                question_id INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+                UNIQUE KEY unique_follow (user_id, question_id),
+                INDEX idx_user (user_id),
+                INDEX idx_question (question_id)
+            )`,
+
+            // Team invites
+            `CREATE TABLE IF NOT EXISTS team_invites (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                team_id INT NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                invited_by INT NOT NULL,
+                token VARCHAR(255) UNIQUE NOT NULL,
+                status ENUM('pending', 'accepted', 'expired', 'cancelled') DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL 7 DAY),
+                FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+                FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_token (token),
+                INDEX idx_team_status (team_id, status)
             )`
         ];
 
@@ -193,6 +220,29 @@ async function initializeDatabase() {
         }
 
         console.log('✓ All database tables created successfully');
+
+        // Migrations for existing databases - add new columns to notifications table
+        const migrations = [
+            // Add actor_id column if not exists
+            `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS actor_id INT AFTER user_id`,
+            // Add comment_id column if not exists
+            `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS comment_id INT AFTER answer_id`,
+            // Update type enum to include 'accepted' - this is done by modifying the column
+            `ALTER TABLE notifications MODIFY COLUMN type ENUM('mention', 'answer', 'comment', 'upvote', 'accepted') NOT NULL`
+        ];
+
+        for (const migration of migrations) {
+            try {
+                await connection.query(migration);
+            } catch (err) {
+                // Ignore errors for "column already exists" or similar
+                if (!err.message.includes('Duplicate column') && !err.message.includes('already exists')) {
+                    console.log('Migration notice:', err.message);
+                }
+            }
+        }
+
+        console.log('✓ Database migrations applied');
 
         await connection.end();
         return true;

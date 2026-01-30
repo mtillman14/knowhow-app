@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const { createNotification } = require('./notifications');
 
 // Get comments for a question or answer
 router.get('/', async (req, res) => {
@@ -49,18 +50,24 @@ router.post('/',
 
             // Verify parent exists and user is team member
             let teamId;
+            let parentOwnerId;
+            let questionId;
+            let answerId = null;
+
             if (parentType === 'question') {
                 const [questions] = await db.query(
-                    'SELECT team_id FROM questions WHERE id = ?',
+                    'SELECT team_id, user_id FROM questions WHERE id = ?',
                     [parentId]
                 );
                 if (questions.length === 0) {
                     return res.status(404).json({ error: 'Question not found' });
                 }
                 teamId = questions[0].team_id;
+                parentOwnerId = questions[0].user_id;
+                questionId = parentId;
             } else {
                 const [answers] = await db.query(
-                    `SELECT q.team_id FROM answers a
+                    `SELECT a.user_id, a.question_id, q.team_id FROM answers a
                      JOIN questions q ON a.question_id = q.id
                      WHERE a.id = ?`,
                     [parentId]
@@ -69,6 +76,9 @@ router.post('/',
                     return res.status(404).json({ error: 'Answer not found' });
                 }
                 teamId = answers[0].team_id;
+                parentOwnerId = answers[0].user_id;
+                questionId = answers[0].question_id;
+                answerId = parentId;
             }
 
             const [membership] = await db.query(
@@ -86,21 +96,21 @@ router.post('/',
                 [parentType, parentId, req.user.userId, body]
             );
 
-            // Update question last activity if commenting on question or its answer
-            if (parentType === 'question') {
-                await db.query(
-                    'UPDATE questions SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ?',
-                    [parentId]
-                );
-            } else {
-                const [answers] = await db.query('SELECT question_id FROM answers WHERE id = ?', [parentId]);
-                if (answers.length > 0) {
-                    await db.query(
-                        'UPDATE questions SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ?',
-                        [answers[0].question_id]
-                    );
-                }
-            }
+            // Update question last activity
+            await db.query(
+                'UPDATE questions SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ?',
+                [questionId]
+            );
+
+            // Notify parent owner about new comment
+            await createNotification({
+                userId: parentOwnerId,
+                actorId: req.user.userId,
+                questionId: questionId,
+                answerId: answerId,
+                commentId: result.insertId,
+                type: 'comment'
+            });
 
             res.status(201).json({
                 message: 'Comment created successfully',

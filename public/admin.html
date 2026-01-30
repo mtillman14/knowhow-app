@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - KnowHow</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <svg viewBox="0 0 32 32" fill="currentColor">
+                    <path d="M26 16v10H6V16H4v12h24V16z"/>
+                    <path d="M6 10v6h20v-6H6zm18 4H8v-2h16v2z"/>
+                    <path d="M6 4v4h20V4H6zm18 2H8V6h16v2z"/>
+                </svg>
+                KnowHow
+            </a>
+
+            <a class="team-selector" id="team-selector" href="#" style="text-decoration: none; color: inherit;">
+                <div class="team-icon" id="team-icon">T</div>
+                <span id="team-name">Loading...</span>
+            </a>
+
+            <div class="header-search">
+                <input type="text" placeholder="Search..." id="search-input">
+            </div>
+
+            <div class="header-actions">
+                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">&#128269;</span>
+                <a href="#" id="notification-bell" class="notification-bell" title="Notifications" style="position: relative; text-decoration: none;">
+                    <span class="header-icon">&#128276;</span>
+                    <span class="notification-badge" id="notification-badge" style="display: none; position: absolute; top: -8px; right: -8px; background: #d32f2f; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; min-width: 16px; text-align: center;">0</span>
+                </a>
+                <button class="btn btn-primary" onclick="goToAsk()">Ask a question</button>
+                <a class="user-menu" id="user-menu" href="#" style="text-decoration: none; color: inherit; cursor: pointer;">
+                    <span class="header-icon">&#128100;</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div style="border-bottom: 1px solid #d6d9dc; background: #f8f9f9;">
+        <div class="container">
+            <div style="display: flex; gap: 0;">
+                <a href="#" id="nav-questions" class="nav-tab">Questions</a>
+                <a href="#" id="nav-members" class="nav-tab">Members</a>
+                <a href="#" id="nav-bookmarks" class="nav-tab">Bookmarks</a>
+                <a href="#" id="nav-notifications" class="nav-tab">Notifications</a>
+                <a href="#" id="nav-admin" class="nav-tab active">Admin</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="content">
+            <!-- Admin Header -->
+            <div class="admin-header">
+                <h1>Team Administration</h1>
+                <p style="color: #6a737c; margin-top: 8px;">Manage team members and invites</p>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="admin-stats">
+                <div class="stat-card">
+                    <div class="stat-card-value" id="stat-members">-</div>
+                    <div class="stat-card-label">Total Members</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value" id="stat-admins">-</div>
+                    <div class="stat-card-label">Admins</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value" id="stat-invites">-</div>
+                    <div class="stat-card-label">Pending Invites</div>
+                </div>
+            </div>
+
+            <!-- Admin Tabs -->
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="showAdminTab('members')">Members</button>
+                <button class="admin-tab" onclick="showAdminTab('invites')">Pending Invites</button>
+            </div>
+
+            <!-- Members Tab -->
+            <div id="members-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2>Team Members</h2>
+                    <button class="btn btn-primary" onclick="showInviteModal()">Invite Member</button>
+                </div>
+
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Joined</th>
+                            <th>Activity</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="members-table-body">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Invites Tab -->
+            <div id="invites-tab" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2>Pending Invites</h2>
+                    <button class="btn btn-primary" onclick="showInviteModal()">Invite Member</button>
+                </div>
+
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Invited By</th>
+                            <th>Sent</th>
+                            <th>Expires</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invites-table-body">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 40px;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invite Modal -->
+    <div class="modal-overlay" id="invite-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Invite Team Member</h3>
+                <button class="modal-close" onclick="hideInviteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="invite-email" placeholder="colleague@company.com">
+                    <p style="font-size: 12px; color: #6a737c; margin-top: 8px;">
+                        An invite link will be generated. Share this link with the person you want to invite.
+                    </p>
+                </div>
+                <div id="invite-link-container" style="display: none; margin-top: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Invite Link</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="invite-link-input" readonly style="flex: 1;">
+                        <button class="btn" onclick="copyInviteLink()">Copy</button>
+                    </div>
+                    <p style="font-size: 12px; color: #5fa146; margin-top: 8px;">
+                        Share this link with the invited person. It will expire in 7 days.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="hideInviteModal()">Close</button>
+                <button class="btn btn-primary" id="create-invite-btn" onclick="createInvite()">Create Invite</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Remove Modal -->
+    <div class="modal-overlay" id="remove-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Remove Member</h3>
+                <button class="modal-close" onclick="hideRemoveModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to remove <strong id="remove-member-name"></strong> from the team?</p>
+                <p style="color: #6a737c; margin-top: 8px;">This action cannot be undone. The member will lose access to all team content.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="hideRemoveModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmRemoveMember()">Remove Member</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Role Change Modal -->
+    <div class="modal-overlay" id="role-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Change Role</h3>
+                <button class="modal-close" onclick="hideRoleModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="role-change-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="hideRoleModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmRoleChange()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        let currentTeam = null;
+        let members = [];
+        let invites = [];
+        let pendingRemoveMemberId = null;
+        let pendingRoleChange = null;
+
+        const pathParts = window.location.pathname.split('/');
+        const teamSlug = pathParts[2];
+
+        async function init() {
+            currentUser = await KnowHow.checkAuth();
+            if (!currentUser) return;
+
+            await loadTeamInfo();
+
+            // Check if user is admin
+            const membership = await checkAdminAccess();
+            if (!membership) {
+                window.location.href = `/team/${teamSlug}/questions`;
+                return;
+            }
+
+            // Set profile link
+            document.getElementById('user-menu').href = `/team/${teamSlug}/users/${currentUser.user.id}`;
+
+            await loadMembers();
+            await loadInvites();
+            setupSearch();
+            setupNavigation();
+        }
+
+        async function checkAdminAccess() {
+            try {
+                const members = await KnowHow.apiCall(`/teams/${teamSlug}/members`);
+                const currentMember = members.find(m => m.id === currentUser.user.id);
+                return currentMember && currentMember.role === 'admin';
+            } catch (error) {
+                console.error('Check admin access error:', error);
+                return false;
+            }
+        }
+
+        function setupNavigation() {
+            document.getElementById('nav-questions').href = `/team/${teamSlug}/questions`;
+            document.getElementById('nav-members').href = `/team/${teamSlug}/members`;
+            document.getElementById('nav-bookmarks').href = `/team/${teamSlug}/bookmarks`;
+            document.getElementById('nav-notifications').href = `/team/${teamSlug}/notifications`;
+            document.getElementById('nav-admin').href = `/team/${teamSlug}/admin`;
+            document.getElementById('notification-bell').href = `/team/${teamSlug}/notifications`;
+
+            // Update notification badge
+            updateNotificationBadge();
+        }
+
+        async function updateNotificationBadge() {
+            try {
+                const data = await KnowHow.apiCall('/notifications/unread/count');
+                const badge = document.getElementById('notification-badge');
+                if (data.count > 0) {
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Failed to update notification badge:', error);
+            }
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('search-input');
+            const searchIcon = document.getElementById('search-icon');
+
+            const performSearch = () => {
+                const query = searchInput.value.trim();
+                if (query) {
+                    window.location.href = `/team/${teamSlug}/questions?search=${encodeURIComponent(query)}`;
+                }
+            };
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            searchIcon.addEventListener('click', () => {
+                performSearch();
+            });
+        }
+
+        async function loadTeamInfo() {
+            try {
+                currentTeam = await KnowHow.apiCall(`/teams/${teamSlug}`);
+                document.getElementById('team-name').textContent = currentTeam.name;
+                document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
+                document.getElementById('team-selector').href = `/team/${teamSlug}/questions`;
+                document.title = `Admin - ${currentTeam.name}`;
+            } catch (error) {
+                console.error('Load team error:', error);
+            }
+        }
+
+        async function loadMembers() {
+            try {
+                const data = await KnowHow.apiCall(`/admin/${currentTeam.id}/members`);
+                members = data.members;
+
+                // Update stats
+                document.getElementById('stat-members').textContent = data.stats.totalMembers;
+                document.getElementById('stat-admins').textContent = data.stats.adminCount;
+                document.getElementById('stat-invites').textContent = data.stats.pendingInvites;
+
+                renderMembers();
+            } catch (error) {
+                console.error('Load members error:', error);
+                KnowHow.showNotification('Failed to load members', 'error');
+            }
+        }
+
+        function renderMembers() {
+            const tbody = document.getElementById('members-table-body');
+
+            if (members.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">No members found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = members.map(member => {
+                const initials = KnowHow.getUserInitials(member.first_name, member.last_name);
+                const isCurrentUser = member.id === currentUser.user.id;
+                const roleClass = member.role === 'admin' ? 'role-admin' : 'role-member';
+
+                const roleOptions = isCurrentUser ? '' : `
+                    <select onchange="changeRole(${member.id}, this.value)" class="role-select">
+                        <option value="admin" ${member.role === 'admin' ? 'selected' : ''}>Admin</option>
+                        <option value="member" ${member.role === 'member' ? 'selected' : ''}>Member</option>
+                    </select>
+                `;
+
+                const actions = isCurrentUser ? '<span style="color: #6a737c;">You</span>' : `
+                    <button class="btn-small btn-danger" onclick="removeMember(${member.id}, '${member.first_name} ${member.last_name}')">Remove</button>
+                `;
+
+                return `
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="user-avatar">${initials}</div>
+                                <div>
+                                    <div style="font-weight: 600;">${member.first_name} ${member.last_name}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${member.email}</td>
+                        <td>
+                            ${isCurrentUser ?
+                                `<span class="role-badge ${roleClass}">${member.role}</span>` :
+                                roleOptions
+                            }
+                        </td>
+                        <td>${KnowHow.formatDate(member.joined_at)}</td>
+                        <td>
+                            <span style="color: #6a737c;">${member.question_count} Q / ${member.answer_count} A</span>
+                        </td>
+                        <td>${actions}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function loadInvites() {
+            try {
+                invites = await KnowHow.apiCall(`/admin/${currentTeam.id}/invites`);
+                renderInvites();
+            } catch (error) {
+                console.error('Load invites error:', error);
+            }
+        }
+
+        function renderInvites() {
+            const tbody = document.getElementById('invites-table-body');
+
+            if (invites.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: #6a737c;">No pending invites.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = invites.map(invite => {
+                const expiresDate = new Date(invite.expires_at);
+                const isExpiringSoon = expiresDate - new Date() < 24 * 60 * 60 * 1000;
+
+                return `
+                    <tr>
+                        <td>${invite.email}</td>
+                        <td>${invite.invited_by_first_name} ${invite.invited_by_last_name}</td>
+                        <td>${KnowHow.formatDate(invite.created_at)}</td>
+                        <td>
+                            <span style="color: ${isExpiringSoon ? '#d32f2f' : '#6a737c'};">
+                                ${KnowHow.formatDate(invite.expires_at)}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn-small" onclick="copyInviteLinkDirect('${invite.token}')">Copy Link</button>
+                            <button class="btn-small btn-danger" onclick="cancelInvite(${invite.id})">Cancel</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function showAdminTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.admin-tab').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Show/hide tabs
+            document.getElementById('members-tab').style.display = tab === 'members' ? 'block' : 'none';
+            document.getElementById('invites-tab').style.display = tab === 'invites' ? 'block' : 'none';
+        }
+
+        function showInviteModal() {
+            document.getElementById('invite-email').value = '';
+            document.getElementById('invite-link-container').style.display = 'none';
+            document.getElementById('create-invite-btn').style.display = 'inline-block';
+            document.getElementById('invite-modal').style.display = 'flex';
+        }
+
+        function hideInviteModal() {
+            document.getElementById('invite-modal').style.display = 'none';
+            loadInvites();
+            loadMembers();
+        }
+
+        async function createInvite() {
+            const email = document.getElementById('invite-email').value.trim();
+
+            if (!email) {
+                KnowHow.showNotification('Please enter an email address', 'error');
+                return;
+            }
+
+            try {
+                const result = await KnowHow.apiCall(`/admin/${currentTeam.id}/invites`, {
+                    method: 'POST',
+                    body: JSON.stringify({ email })
+                });
+
+                // Show the invite link
+                const inviteLink = window.location.origin + result.inviteLink;
+                document.getElementById('invite-link-input').value = inviteLink;
+                document.getElementById('invite-link-container').style.display = 'block';
+                document.getElementById('create-invite-btn').style.display = 'none';
+
+                KnowHow.showNotification('Invite created successfully', 'success');
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
+            }
+        }
+
+        function copyInviteLink() {
+            const input = document.getElementById('invite-link-input');
+            input.select();
+            document.execCommand('copy');
+            KnowHow.showNotification('Link copied to clipboard', 'success');
+        }
+
+        function copyInviteLinkDirect(token) {
+            const link = window.location.origin + '/invite/' + token;
+            navigator.clipboard.writeText(link).then(() => {
+                KnowHow.showNotification('Link copied to clipboard', 'success');
+            }).catch(() => {
+                // Fallback
+                const input = document.createElement('input');
+                input.value = link;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                KnowHow.showNotification('Link copied to clipboard', 'success');
+            });
+        }
+
+        async function cancelInvite(inviteId) {
+            if (!confirm('Are you sure you want to cancel this invite?')) return;
+
+            try {
+                await KnowHow.apiCall(`/admin/${currentTeam.id}/invites/${inviteId}`, {
+                    method: 'DELETE'
+                });
+
+                KnowHow.showNotification('Invite cancelled', 'success');
+                await loadInvites();
+                await loadMembers();
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
+            }
+        }
+
+        function changeRole(memberId, newRole) {
+            const member = members.find(m => m.id === memberId);
+            if (!member) return;
+
+            const action = newRole === 'admin' ? 'promote' : 'demote';
+            const message = `Are you sure you want to ${action} <strong>${member.first_name} ${member.last_name}</strong> to ${newRole}?`;
+
+            pendingRoleChange = { memberId, newRole, previousRole: member.role };
+            document.getElementById('role-change-message').innerHTML = message;
+            document.getElementById('role-modal').style.display = 'flex';
+        }
+
+        function hideRoleModal() {
+            document.getElementById('role-modal').style.display = 'none';
+            // Reset the select to previous value if cancelled
+            if (pendingRoleChange) {
+                const member = members.find(m => m.id === pendingRoleChange.memberId);
+                if (member) {
+                    renderMembers();
+                }
+            }
+            pendingRoleChange = null;
+        }
+
+        async function confirmRoleChange() {
+            if (!pendingRoleChange) return;
+
+            try {
+                await KnowHow.apiCall(`/admin/${currentTeam.id}/members/${pendingRoleChange.memberId}/role`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ role: pendingRoleChange.newRole })
+                });
+
+                KnowHow.showNotification('Role updated successfully', 'success');
+                hideRoleModal();
+                await loadMembers();
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
+                hideRoleModal();
+            }
+        }
+
+        function removeMember(memberId, memberName) {
+            pendingRemoveMemberId = memberId;
+            document.getElementById('remove-member-name').textContent = memberName;
+            document.getElementById('remove-modal').style.display = 'flex';
+        }
+
+        function hideRemoveModal() {
+            document.getElementById('remove-modal').style.display = 'none';
+            pendingRemoveMemberId = null;
+        }
+
+        async function confirmRemoveMember() {
+            if (!pendingRemoveMemberId) return;
+
+            try {
+                await KnowHow.apiCall(`/admin/${currentTeam.id}/members/${pendingRemoveMemberId}`, {
+                    method: 'DELETE'
+                });
+
+                KnowHow.showNotification('Member removed successfully', 'success');
+                hideRemoveModal();
+                await loadMembers();
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
+                hideRemoveModal();
+            }
+        }
+
+        function goToAsk() {
+            window.location.href = `/team/${teamSlug}/ask`;
+        }
+
+        init();
+    </script>
+</body>
+</html>

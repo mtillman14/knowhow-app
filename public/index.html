@@ -3,17 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stack Internal - Collaborate and share knowledge</title>
+    <title>KnowHow - Collaborate and share knowledge</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <div class="landing">
-        <h1>Stack Internal</h1>
+        <h1>KnowHow</h1>
         <p>Collaborate, connect, and grow your team's wisdom</p>
 
         <div id="welcome-container">
-            <p class="welcome-message">Welcome! You are not on any Teams.</p>
-            <a href="/create-team.html" class="btn btn-large btn-primary">Create a free team</a>
+            <p class="welcome-message" id="welcome-message">Welcome! You are not on any Teams.</p>
+            <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+                <a href="/create-team.html" class="btn btn-large btn-primary">Create a free team</a>
+                <a href="/login.html" class="btn btn-large btn-secondary" id="sign-in-btn">Sign in</a>
+            </div>
         </div>
 
         <div id="teams-list" style="display: none;">
@@ -27,7 +30,7 @@
         // Check if user is logged in and has teams
         async function loadUserInfo() {
             try {
-                const userData = await StackInternal.getCurrentUser();
+                const userData = await KnowHow.getCurrentUser();
 
                 if (userData && userData.teams && userData.teams.length > 0) {
                     // User has teams, show them
@@ -41,9 +44,13 @@
                             <p style="color: #6a737c; margin-top: 8px;">Role: ${team.user_role}</p>
                         </div>
                     `).join('');
+                } else if (userData) {
+                    // User is logged in but has no teams
+                    document.getElementById('welcome-message').textContent = `Welcome back, ${userData.user.first_name}! You are not on any Teams yet.`;
+                    document.getElementById('sign-in-btn').style.display = 'none';
                 }
             } catch (error) {
-                // User not logged in, show welcome message
+                // User not logged in, show welcome message with sign in option
                 console.log('User not logged in');
             }
         }

@@ -13,6 +13,7 @@ router.get('/', authenticateToken, async (req, res) => {
             filter,
             tag,
             search,
+            closed,
             page = 1,
             limit = 20
         } = req.query;
@@ -58,6 +59,13 @@ router.get('/', authenticateToken, async (req, res) => {
             query += ` AND NOT EXISTS (
                 SELECT 1 FROM answers a WHERE a.question_id = q.id AND a.is_accepted = 1
             )`;
+        }
+
+        // Filter by closed status
+        if (closed === 'true') {
+            query += ` AND q.is_closed = 1`;
+        } else if (closed === 'false') {
+            query += ` AND q.is_closed = 0`;
         }
 
         query += ` GROUP BY q.id`;
@@ -109,6 +117,12 @@ router.get('/', authenticateToken, async (req, res) => {
             countQuery += ` AND q.answer_count = 0`;
         } else if (filter === 'unanswered') {
             countQuery += ` AND NOT EXISTS (SELECT 1 FROM answers a WHERE a.question_id = q.id AND a.is_accepted = 1)`;
+        }
+
+        if (closed === 'true') {
+            countQuery += ` AND q.is_closed = 1`;
+        } else if (closed === 'false') {
+            countQuery += ` AND q.is_closed = 0`;
         }
 
         const [countResult] = await db.query(countQuery, countParams);
@@ -376,6 +390,105 @@ router.put('/:id',
         }
     }
 );
+
+// Toggle follow question
+router.post('/:id/follow', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Check if question exists
+        const [questions] = await db.query('SELECT id FROM questions WHERE id = ?', [id]);
+        if (questions.length === 0) {
+            return res.status(404).json({ error: 'Question not found' });
+        }
+
+        // Check if already following
+        const [existingFollow] = await db.query(
+            'SELECT id FROM question_follows WHERE user_id = ? AND question_id = ?',
+            [req.user.userId, id]
+        );
+
+        if (existingFollow.length > 0) {
+            // Unfollow
+            await db.query(
+                'DELETE FROM question_follows WHERE user_id = ? AND question_id = ?',
+                [req.user.userId, id]
+            );
+            res.json({ following: false, message: 'Unfollowed question' });
+        } else {
+            // Follow
+            await db.query(
+                'INSERT INTO question_follows (user_id, question_id) VALUES (?, ?)',
+                [req.user.userId, id]
+            );
+            res.json({ following: true, message: 'Following question' });
+        }
+    } catch (error) {
+        console.error('Toggle follow error:', error);
+        res.status(500).json({ error: 'Failed to toggle follow' });
+    }
+});
+
+// Check if user follows question
+router.get('/:id/follow', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const [follow] = await db.query(
+            'SELECT id FROM question_follows WHERE user_id = ? AND question_id = ?',
+            [req.user.userId, id]
+        );
+
+        res.json({ following: follow.length > 0 });
+    } catch (error) {
+        console.error('Check follow error:', error);
+        res.status(500).json({ error: 'Failed to check follow status' });
+    }
+});
+
+// Toggle close question
+router.post('/:id/close', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Check if question exists and get details
+        const [questions] = await db.query(
+            'SELECT user_id, team_id, is_closed FROM questions WHERE id = ?',
+            [id]
+        );
+
+        if (questions.length === 0) {
+            return res.status(404).json({ error: 'Question not found' });
+        }
+
+        const question = questions[0];
+
+        // Check if user owns it or is admin
+        const [membership] = await db.query(
+            'SELECT role FROM team_members WHERE user_id = ? AND team_id = ?',
+            [req.user.userId, question.team_id]
+        );
+
+        if (question.user_id !== req.user.userId && (!membership.length || membership[0].role !== 'admin')) {
+            return res.status(403).json({ error: 'Not authorized to close/reopen this question' });
+        }
+
+        // Toggle closed status
+        const newStatus = !question.is_closed;
+        await db.query(
+            'UPDATE questions SET is_closed = ? WHERE id = ?',
+            [newStatus, id]
+        );
+
+        res.json({
+            is_closed: newStatus,
+            message: newStatus ? 'Question closed' : 'Question reopened'
+        });
+    } catch (error) {
+        console.error('Toggle close error:', error);
+        res.status(500).json({ error: 'Failed to toggle close status' });
+    }
+});
 
 // Delete question
 router.delete('/:id', authenticateToken, async (req, res) => {

@@ -23,6 +23,9 @@ const commentRoutes = require('./routes/comments');
 const voteRoutes = require('./routes/votes');
 const tagRoutes = require('./routes/tags');
 const userRoutes = require('./routes/users');
+const bookmarkRoutes = require('./routes/bookmarks');
+const adminRoutes = require('./routes/admin');
+const notificationRoutes = require('./routes/notifications');
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -33,6 +36,9 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/bookmarks', bookmarkRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Serve frontend pages
 app.get('/', (req, res) => {
@@ -65,6 +71,22 @@ app.get('/team/:slug/users/:id', (req, res) => {
 
 app.get('/team/:slug/members', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'members.html'));
+});
+
+app.get('/team/:slug/bookmarks', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'bookmarks.html'));
+});
+
+app.get('/team/:slug/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+app.get('/team/:slug/notifications', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'notifications.html'));
+});
+
+app.get('/invite/:token', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'invite.html'));
 });
 
 // Error handling middleware

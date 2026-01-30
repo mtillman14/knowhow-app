@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create a Team - Stack Internal</title>
+    <title>Create a Team - KnowHow</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -99,7 +99,7 @@
             </div>
 
             <div class="form-group">
-                <label>What is your primary goal with Stack Overflow?</label>
+                <label>What is your primary goal with KnowHow?</label>
                 <select id="primaryGoal">
                     <option value="">Please select one...</option>
                     <option value="knowledge-sharing">Knowledge sharing</option>
@@ -125,7 +125,7 @@
             <div class="form-group">
                 <label>Team URL</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span>stackinternal.com/c/</span>
+                    <span>knowhow.app/c/</span>
                     <input type="text" id="teamSlug" required style="flex: 1;">
                 </div>
             </div>
@@ -133,7 +133,7 @@
             <div class="form-group">
                 <label>
                     <input type="checkbox" id="agreeTerms" required>
-                    I agree to the Stack Overflow Internal - Free, Terms of Service and Privacy Policy.
+                    I agree to the KnowHow Internal - Free, Terms of Service and Privacy Policy.
                 </label>
             </div>
 
@@ -144,7 +144,7 @@
         <div id="loading" style="display: none;" class="text-center">
             <div class="loading">
                 <div class="loading-icon"></div>
-                <h2>Setting up Stack Internal</h2>
+                <h2>Setting up KnowHow</h2>
                 <p>We'll redirect you there in a few seconds.</p>
             </div>
         </div>
@@ -214,13 +214,13 @@
 
             try {
                 // Register user
-                const registerResponse = await StackInternal.apiCall('/auth/register', {
+                const registerResponse = await KnowHow.apiCall('/auth/register', {
                     method: 'POST',
                     body: JSON.stringify(userData)
                 });
 
                 // Create team
-                const teamResponse = await StackInternal.apiCall('/teams', {
+                const teamResponse = await KnowHow.apiCall('/teams', {
                     method: 'POST',
                     body: JSON.stringify(teamData)
                 });

@@ -1,4 +1,4 @@
-/* Stack Internal - Main Stylesheet */
+/* KnowHow - Main Stylesheet */
 
 :root {
     --orange: #F48024;
@@ -545,6 +545,83 @@ body {
     color: var(--dark-gray);
 }
 
+/* Three-dot dropdown menu */
+.question-menu-container {
+    position: relative;
+    display: inline-block;
+}
+
+.question-menu-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    font-size: 18px;
+    color: var(--text-gray);
+    border-radius: 4px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.question-menu-btn:hover {
+    background: var(--light-gray);
+    color: var(--dark-gray);
+}
+
+.question-menu-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--white);
+    border: 1px solid var(--border-gray);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 160px;
+    z-index: 100;
+    display: none;
+    overflow: hidden;
+}
+
+.question-menu-dropdown.show {
+    display: block;
+}
+
+.question-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: var(--dark-gray);
+    text-decoration: none;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.question-menu-item:hover {
+    background: var(--light-gray);
+}
+
+.question-menu-item.danger {
+    color: #d32f2f;
+}
+
+.question-menu-item.danger:hover {
+    background: #ffebee;
+}
+
+.question-menu-divider {
+    height: 1px;
+    background: var(--border-gray);
+    margin: 4px 0;
+}
+
 .post-user {
     background: var(--blue-light);
     background: #d9eaf7;
@@ -785,4 +862,238 @@ body {
     color: var(--black);
     border-bottom-color: var(--orange);
     font-weight: 600;
+}
+
+/* Admin Dashboard Styles */
+.admin-header {
+    margin-bottom: 24px;
+}
+
+.admin-header h1 {
+    font-size: 28px;
+    font-weight: 400;
+}
+
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.stat-card {
+    background: var(--light-gray);
+    border: 1px solid var(--border-gray);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.stat-card-value {
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--blue);
+    margin-bottom: 4px;
+}
+
+.stat-card-label {
+    font-size: 14px;
+    color: var(--text-gray);
+}
+
+.admin-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border-gray);
+    margin-bottom: 24px;
+}
+
+.admin-tab {
+    padding: 12px 24px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-gray);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.admin-tab:hover {
+    color: var(--black);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.admin-tab.active {
+    color: var(--black);
+    border-bottom-color: var(--orange);
+    font-weight: 600;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--white);
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-gray);
+}
+
+.admin-table th {
+    background: var(--light-gray);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-gray);
+    text-transform: uppercase;
+}
+
+.admin-table tr:hover {
+    background: #fafafa;
+}
+
+.role-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.role-admin {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.role-member {
+    background: #f5f5f5;
+    color: #616161;
+}
+
+.role-select {
+    padding: 6px 12px;
+    border: 1px solid var(--border-gray);
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+    border: 1px solid var(--border-gray);
+    background: var(--white);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-small:hover {
+    background: var(--light-gray);
+}
+
+.btn-secondary {
+    background: var(--light-gray);
+    color: var(--dark-gray);
+    border: 1px solid var(--border-gray);
+}
+
+.btn-secondary:hover {
+    background: #e8e8e8;
+}
+
+.btn-danger {
+    background: #d32f2f;
+    color: var(--white);
+    border: none;
+}
+
+.btn-danger:hover {
+    background: #b71c1c;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.modal {
+    background: var(--white);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-gray);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-gray);
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--black);
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-gray);
+    background: var(--light-gray);
+    border-radius: 0 0 8px 8px;
+}
+
+/* Responsive Admin */
+@media (max-width: 768px) {
+    .admin-table {
+        display: block;
+        overflow-x: auto;
+    }
+
+    .admin-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .modal {
+        margin: 16px;
+        max-width: calc(100% - 32px);
+    }
 }

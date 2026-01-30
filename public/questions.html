@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Questions - Stack Internal</title>
+    <title>Questions - KnowHow</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
                     <path d="M6 10v6h20v-6H6zm18 4H8v-2h16v2z"/>
                     <path d="M6 4v4h20V4H6zm18 2H8V6h16v2z"/>
                 </svg>
-                Stack Internal
+                KnowHow
             </a>
 
             <a class="team-selector" id="team-selector" href="#" style="text-decoration: none; color: inherit;">
@@ -29,10 +29,14 @@
             </div>
 
             <div class="header-actions">
-                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">🔍</span>
+                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">&#128269;</span>
+                <a href="#" id="notification-bell" class="notification-bell" title="Notifications" style="position: relative; text-decoration: none;">
+                    <span class="header-icon">&#128276;</span>
+                    <span class="notification-badge" id="notification-badge" style="display: none; position: absolute; top: -8px; right: -8px; background: #d32f2f; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; min-width: 16px; text-align: center;">0</span>
+                </a>
                 <button class="btn btn-primary" onclick="window.location.href='ask'">Ask a question</button>
                 <a class="user-menu" id="user-menu" href="#" style="text-decoration: none; color: inherit; cursor: pointer;">
-                    <span class="header-icon">👤</span>
+                    <span class="header-icon">&#128100;</span>
                 </a>
             </div>
         </div>
@@ -44,6 +48,9 @@
             <div style="display: flex; gap: 0;">
                 <a href="#" id="nav-questions" class="nav-tab active">Questions</a>
                 <a href="#" id="nav-members" class="nav-tab">Members</a>
+                <a href="#" id="nav-bookmarks" class="nav-tab">Bookmarks</a>
+                <a href="#" id="nav-notifications" class="nav-tab">Notifications</a>
+                <a href="#" id="nav-admin" class="nav-tab" style="display: none;">Admin</a>
             </div>
         </div>
     </div>
@@ -84,7 +91,9 @@
                 <h3>Filter by</h3>
                 <div style="margin: 16px 0;">
                     <label><input type="checkbox" id="filter-no-answers"> No answers</label><br>
-                    <label><input type="checkbox" id="filter-no-accepted"> No upvoted or accepted answers</label>
+                    <label><input type="checkbox" id="filter-no-accepted"> No upvoted or accepted answers</label><br>
+                    <label><input type="checkbox" id="filter-closed"> Closed questions only</label><br>
+                    <label><input type="checkbox" id="filter-open"> Open questions only</label>
                 </div>
 
                 <h3>Sorted by</h3>
@@ -134,7 +143,7 @@
 
         async function init() {
             // Check auth
-            const user = await StackInternal.checkAuth();
+            const user = await KnowHow.checkAuth();
             if (!user) return;
 
             // Load team info
@@ -169,23 +178,57 @@
 
             // Setup navigation
             setupNavigation();
+
+            // Update notification badge
+            updateNotificationBadge();
         }
 
-        function setupNavigation() {
+        async function updateNotificationBadge() {
+            try {
+                const data = await KnowHow.apiCall('/notifications/unread/count');
+                const badge = document.getElementById('notification-badge');
+                if (data.count > 0) {
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Failed to update notification badge:', error);
+            }
+        }
+
+        async function setupNavigation() {
             document.getElementById('nav-questions').href = `/team/${teamSlug}/questions`;
             document.getElementById('nav-members').href = `/team/${teamSlug}/members`;
+            document.getElementById('nav-bookmarks').href = `/team/${teamSlug}/bookmarks`;
+            document.getElementById('nav-notifications').href = `/team/${teamSlug}/notifications`;
+            document.getElementById('nav-admin').href = `/team/${teamSlug}/admin`;
+            document.getElementById('notification-bell').href = `/team/${teamSlug}/notifications`;
+
+            // Check if user is admin to show admin tab
+            try {
+                const members = await KnowHow.apiCall(`/teams/${teamSlug}/members`);
+                const user = await KnowHow.getCurrentUser();
+                const currentMember = members.find(m => m.id === user.user.id);
+                if (currentMember && currentMember.role === 'admin') {
+                    document.getElementById('nav-admin').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Check admin status error:', error);
+            }
         }
 
         async function loadTeamInfo() {
             try {
-                currentTeam = await StackInternal.apiCall(`/teams/${teamSlug}`);
+                currentTeam = await KnowHow.apiCall(`/teams/${teamSlug}`);
 
                 document.getElementById('team-name').textContent = currentTeam.name;
                 document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
                 document.getElementById('team-selector').href = `/team/${teamSlug}/questions`;
                 document.title = `Questions - ${currentTeam.name}`;
             } catch (error) {
-                StackInternal.showNotification('Failed to load team info', 'error');
+                KnowHow.showNotification('Failed to load team info', 'error');
             }
         }
 
@@ -199,7 +242,7 @@
                     ...currentFilters
                 });
 
-                const data = await StackInternal.apiCall(`/questions?${params}`);
+                const data = await KnowHow.apiCall(`/questions?${params}`);
 
                 // Update count
                 document.getElementById('question-count').textContent = `${data.total} post${data.total !== 1 ? 's' : ''}`;
@@ -216,7 +259,7 @@
                 updatePagination(data);
             } catch (error) {
                 console.error('Load questions error:', error);
-                StackInternal.showNotification('Failed to load questions', 'error');
+                KnowHow.showNotification('Failed to load questions', 'error');
             }
         }
 
@@ -225,8 +268,10 @@
                 `<a href="?tag=${encodeURIComponent(tag)}" class="tag">${tag}</a>`
             ).join('') : '';
 
+            const closedBadge = q.is_closed ? '<span style="background: #ffc107; color: #856404; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">CLOSED</span>' : '';
+
             return `
-                <div class="question-item">
+                <div class="question-item" ${q.is_closed ? 'style="opacity: 0.7;"' : ''}>
                     <div class="question-stats">
                         <div class="stat">
                             <span class="stat-value">${q.score}</span>
@@ -243,7 +288,7 @@
                     </div>
                     <div class="question-content">
                         <h3 class="question-title">
-                            <a href="/team/${teamSlug}/questions/${q.id}">${q.title}</a>
+                            <a href="/team/${teamSlug}/questions/${q.id}">${q.title}</a>${closedBadge}
                         </h3>
                         <div class="question-excerpt">
                             ${q.body.substring(0, 200)}${q.body.length > 200 ? '...' : ''}
@@ -253,10 +298,10 @@
                         </div>
                         <div class="question-meta">
                             <div class="user-info">
-                                ${StackInternal.createUserAvatar(q)}
+                                ${KnowHow.createUserAvatar(q)}
                                 <a href="/team/${teamSlug}/users/${q.user_id}" style="color: #0077cc; text-decoration: none;">${q.first_name} ${q.last_name}</a>
                             </div>
-                            <span>asked ${StackInternal.formatDate(q.created_at)}</span>
+                            <span>asked ${KnowHow.formatDate(q.created_at)}</span>
                         </div>
                     </div>
                 </div>
@@ -351,6 +396,12 @@
 
             if (document.getElementById('filter-no-answers').checked) {
                 currentFilters.filter = 'no-answers';
+            }
+
+            if (document.getElementById('filter-closed').checked) {
+                currentFilters.closed = 'true';
+            } else if (document.getElementById('filter-open').checked) {
+                currentFilters.closed = 'false';
             }
 
             const sortRadio = document.querySelector('input[name="sort-radio"]:checked');

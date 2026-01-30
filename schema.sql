@@ -1,7 +1,7 @@
--- Stack Internal Database Schema
+-- KnowHow Database Schema
 
-CREATE DATABASE IF NOT EXISTS stack_internal;
-USE stack_internal;
+CREATE DATABASE IF NOT EXISTS knowhow;
+USE knowhow;
 
 -- Users table
 CREATE TABLE users (
@@ -138,18 +138,22 @@ CREATE TABLE question_tags (
     INDEX idx_tag (tag_id)
 );
 
--- Notifications table (for "Ask team members" feature)
+-- Notifications table (for in-app notifications)
 CREATE TABLE notifications (
     id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
+    actor_id INT,
     question_id INT,
     answer_id INT,
-    type ENUM('mention', 'answer', 'comment', 'upvote') NOT NULL,
+    comment_id INT,
+    type ENUM('mention', 'answer', 'comment', 'upvote', 'accepted') NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
     FOREIGN KEY (answer_id) REFERENCES answers(id) ON DELETE CASCADE,
+    FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
     INDEX idx_user_read (user_id, is_read),
     INDEX idx_created (created_at)
 );
@@ -164,4 +168,33 @@ CREATE TABLE bookmarks (
     FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
     UNIQUE KEY unique_bookmark (user_id, question_id),
     INDEX idx_user (user_id)
+);
+
+-- Question follows (for follow feature)
+CREATE TABLE question_follows (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    question_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_follow (user_id, question_id),
+    INDEX idx_user (user_id),
+    INDEX idx_question (question_id)
+);
+
+-- Team invites
+CREATE TABLE team_invites (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    team_id INT NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    invited_by INT NOT NULL,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    status ENUM('pending', 'accepted', 'expired', 'cancelled') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL 7 DAY),
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+    FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_token (token),
+    INDEX idx_team_status (team_id, status)
 );

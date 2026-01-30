@@ -200,4 +200,133 @@ router.post('/:slug/members',
     }
 );
 
+// Get invite details by token (for invite page)
+router.get('/invites/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+
+        const [invites] = await db.query(
+            `SELECT ti.*, t.name as team_name, t.slug as team_slug,
+                    u.first_name as invited_by_first_name, u.last_name as invited_by_last_name
+             FROM team_invites ti
+             JOIN teams t ON ti.team_id = t.id
+             JOIN users u ON ti.invited_by = u.id
+             WHERE ti.token = ?`,
+            [token]
+        );
+
+        if (invites.length === 0) {
+            return res.status(404).json({ error: 'Invite not found' });
+        }
+
+        const invite = invites[0];
+
+        // Check if expired
+        if (new Date(invite.expires_at) < new Date()) {
+            return res.status(400).json({ error: 'This invite has expired' });
+        }
+
+        // Check if already used
+        if (invite.status !== 'pending') {
+            return res.status(400).json({ error: `This invite has already been ${invite.status}` });
+        }
+
+        res.json({
+            email: invite.email,
+            teamName: invite.team_name,
+            teamSlug: invite.team_slug,
+            invitedBy: `${invite.invited_by_first_name} ${invite.invited_by_last_name}`,
+            expiresAt: invite.expires_at
+        });
+    } catch (error) {
+        console.error('Get invite error:', error);
+        res.status(500).json({ error: 'Failed to get invite details' });
+    }
+});
+
+// Accept invite
+router.post('/invites/accept', authenticateToken, async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({ error: 'Token is required' });
+        }
+
+        // Get invite
+        const [invites] = await db.query(
+            `SELECT ti.*, t.slug as team_slug
+             FROM team_invites ti
+             JOIN teams t ON ti.team_id = t.id
+             WHERE ti.token = ?`,
+            [token]
+        );
+
+        if (invites.length === 0) {
+            return res.status(404).json({ error: 'Invite not found' });
+        }
+
+        const invite = invites[0];
+
+        // Check if expired
+        if (new Date(invite.expires_at) < new Date()) {
+            return res.status(400).json({ error: 'This invite has expired' });
+        }
+
+        // Check if already used
+        if (invite.status !== 'pending') {
+            return res.status(400).json({ error: `This invite has already been ${invite.status}` });
+        }
+
+        // Get user email
+        const [users] = await db.query('SELECT email FROM users WHERE id = ?', [req.user.userId]);
+        const userEmail = users[0].email;
+
+        // Check if email matches
+        if (userEmail.toLowerCase() !== invite.email.toLowerCase()) {
+            return res.status(403).json({
+                error: 'This invite was sent to a different email address'
+            });
+        }
+
+        // Check if already a member
+        const [existing] = await db.query(
+            'SELECT * FROM team_members WHERE user_id = ? AND team_id = ?',
+            [req.user.userId, invite.team_id]
+        );
+
+        if (existing.length > 0) {
+            // Update invite status and redirect anyway
+            await db.query(
+                'UPDATE team_invites SET status = ? WHERE id = ?',
+                ['accepted', invite.id]
+            );
+            return res.json({
+                message: 'You are already a member of this team',
+                teamSlug: invite.team_slug
+            });
+        }
+
+        // Add user to team
+        await db.query(
+            'INSERT INTO team_members (user_id, team_id, role) VALUES (?, ?, ?)',
+            [req.user.userId, invite.team_id, 'member']
+        );
+
+        // Update invite status
+        await db.query(
+            'UPDATE team_invites SET status = ? WHERE id = ?',
+            ['accepted', invite.id]
+        );
+
+        res.json({
+            message: 'You have successfully joined the team',
+            teamSlug: invite.team_slug
+        });
+    } catch (error) {
+        console.error('Accept invite error:', error);
+        res.status(500).json({ error: 'Failed to accept invite' });
+    }
+});
+
 module.exports = router;

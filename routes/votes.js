@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const { createNotification } = require('./notifications');
 
 // Vote on question or answer
 router.post('/',
@@ -83,19 +84,43 @@ router.post('/',
                     [scoreChange, votableId]
                 );
 
-                // Update question last activity
+                // Update question last activity and notify on upvote
                 if (votableType === 'question') {
                     await db.query(
                         'UPDATE questions SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ?',
                         [votableId]
                     );
+
+                    // Notify question author on upvote
+                    if (voteType === 'up') {
+                        const [questions] = await db.query('SELECT user_id FROM questions WHERE id = ?', [votableId]);
+                        if (questions.length > 0) {
+                            await createNotification({
+                                userId: questions[0].user_id,
+                                actorId: userId,
+                                questionId: votableId,
+                                type: 'upvote'
+                            });
+                        }
+                    }
                 } else {
-                    const [answers] = await db.query('SELECT question_id FROM answers WHERE id = ?', [votableId]);
+                    const [answers] = await db.query('SELECT question_id, user_id FROM answers WHERE id = ?', [votableId]);
                     if (answers.length > 0) {
                         await db.query(
                             'UPDATE questions SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ?',
                             [answers[0].question_id]
                         );
+
+                        // Notify answer author on upvote
+                        if (voteType === 'up') {
+                            await createNotification({
+                                userId: answers[0].user_id,
+                                actorId: userId,
+                                questionId: answers[0].question_id,
+                                answerId: votableId,
+                                type: 'upvote'
+                            });
+                        }
                     }
                 }
 

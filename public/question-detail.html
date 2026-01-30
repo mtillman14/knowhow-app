@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Question - Stack Internal</title>
+    <title>Question - KnowHow</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
                     <path d="M6 10v6h20v-6H6zm18 4H8v-2h16v2z"/>
                     <path d="M6 4v4h20V4H6zm18 2H8V6h16v2z"/>
                 </svg>
-                Stack Internal
+                KnowHow
             </a>
 
             <a class="team-selector" id="team-selector" href="#" style="text-decoration: none; color: inherit;">
@@ -29,10 +29,14 @@
             </div>
 
             <div class="header-actions">
-                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">🔍</span>
+                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">&#128269;</span>
+                <a href="#" id="notification-bell" class="notification-bell" title="Notifications" style="position: relative; text-decoration: none;">
+                    <span class="header-icon">&#128276;</span>
+                    <span class="notification-badge" id="notification-badge" style="display: none; position: absolute; top: -8px; right: -8px; background: #d32f2f; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; min-width: 16px; text-align: center;">0</span>
+                </a>
                 <button class="btn btn-primary" onclick="goToAsk()">Ask a question</button>
                 <a class="user-menu" id="user-menu" href="#" style="text-decoration: none; color: inherit; cursor: pointer;">
-                    <span class="header-icon">👤</span>
+                    <span class="header-icon">&#128100;</span>
                 </a>
             </div>
         </div>
@@ -44,6 +48,9 @@
             <div style="display: flex; gap: 0;">
                 <a href="#" id="nav-questions" class="nav-tab active">Questions</a>
                 <a href="#" id="nav-members" class="nav-tab">Members</a>
+                <a href="#" id="nav-bookmarks" class="nav-tab">Bookmarks</a>
+                <a href="#" id="nav-notifications" class="nav-tab">Notifications</a>
+                <a href="#" id="nav-admin" class="nav-tab" style="display: none;">Admin</a>
             </div>
         </div>
     </div>
@@ -54,6 +61,9 @@
             <!-- Question -->
             <div class="question-header">
                 <h1 id="question-title">Loading...</h1>
+                <div id="closed-banner" style="display: none; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 10px 16px; margin-bottom: 12px; color: #856404; font-size: 14px;">
+                    <strong>&#128274; Closed.</strong> This question is not accepting new answers.
+                </div>
                 <div class="question-info">
                     <span>Asked <span id="asked-date"></span></span>
                     <span>Modified <span id="modified-date"></span></span>
@@ -66,7 +76,7 @@
                     <button class="vote-btn" id="upvote-question" onclick="vote('question', 'up')">▲</button>
                     <div class="vote-count" id="question-score">0</div>
                     <button class="vote-btn" id="downvote-question" onclick="vote('question', 'down')">▼</button>
-                    <button class="vote-btn" title="Bookmark">🔖</button>
+                    <button class="vote-btn" id="bookmark-btn" onclick="toggleBookmark()" title="Bookmark this question">🔖</button>
                     <button class="vote-btn" title="History">🕐</button>
                 </div>
 
@@ -75,12 +85,30 @@
                         Loading...
                     </div>
 
-                    <div class="post-actions">
-                        <a href="#" class="action-link">Share</a>
-                        <a href="#" class="action-link" id="edit-question" onclick="showEditForm(); return false;">Edit</a>
-                        <a href="#" class="action-link">Follow</a>
-                        <a href="#" class="action-link">Close</a>
-                        <a href="#" class="action-link" id="delete-question">Delete</a>
+                    <div class="post-actions" style="justify-content: flex-end;">
+                        <div class="question-menu-container">
+                            <button class="question-menu-btn" onclick="toggleQuestionMenu(event)" title="More actions">
+                                &#8942;
+                            </button>
+                            <div class="question-menu-dropdown" id="question-menu-dropdown">
+                                <button class="question-menu-item" onclick="shareQuestion()">
+                                    <span>&#128279;</span> Share
+                                </button>
+                                <button class="question-menu-item" id="follow-menu-item" onclick="toggleFollow()">
+                                    <span>&#128276;</span> <span id="follow-text">Follow</span>
+                                </button>
+                                <div class="question-menu-divider" id="menu-divider-edit" style="display: none;"></div>
+                                <button class="question-menu-item" id="edit-menu-item" onclick="showEditForm()" style="display: none;">
+                                    <span>&#9998;</span> Edit
+                                </button>
+                                <button class="question-menu-item" id="close-menu-item" onclick="toggleClose()" style="display: none;">
+                                    <span>&#128274;</span> <span id="close-text">Close</span>
+                                </button>
+                                <button class="question-menu-item danger" id="delete-menu-item" onclick="deleteQuestion()" style="display: none;">
+                                    <span>&#128465;</span> Delete
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Edit Form (hidden by default) -->
@@ -168,13 +196,183 @@
         let currentQuestion = null;
         let currentUser = null;
         let currentTeam = null;
+        let isAdmin = false;
+        let isFollowing = false;
 
         const pathParts = window.location.pathname.split('/');
         const teamSlug = pathParts[2];
         const questionId = pathParts[4];
 
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('question-menu-dropdown');
+            const menuBtn = event.target.closest('.question-menu-btn');
+            if (!menuBtn && dropdown && dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        function toggleQuestionMenu(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('question-menu-dropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        async function shareQuestion() {
+            const url = window.location.href;
+            try {
+                await navigator.clipboard.writeText(url);
+                KnowHow.showNotification('Link copied to clipboard', 'success');
+            } catch (err) {
+                // Fallback for older browsers
+                const input = document.createElement('input');
+                input.value = url;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                KnowHow.showNotification('Link copied to clipboard', 'success');
+            }
+            document.getElementById('question-menu-dropdown').classList.remove('show');
+        }
+
+        async function toggleFollow() {
+            try {
+                const result = await KnowHow.apiCall(`/questions/${questionId}/follow`, { method: 'POST' });
+                isFollowing = result.following;
+                updateFollowText();
+                KnowHow.showNotification(result.message, 'success');
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
+            }
+            document.getElementById('question-menu-dropdown').classList.remove('show');
+        }
+
+        function updateFollowText() {
+            document.getElementById('follow-text').textContent = isFollowing ? 'Unfollow' : 'Follow';
+        }
+
+        async function checkFollowStatus() {
+            try {
+                const result = await KnowHow.apiCall(`/questions/${questionId}/follow`);
+                isFollowing = result.following;
+                updateFollowText();
+            } catch (error) {
+                console.error('Check follow status error:', error);
+            }
+        }
+
+        async function toggleClose() {
+            try {
+                const result = await KnowHow.apiCall(`/questions/${questionId}/close`, { method: 'POST' });
+                currentQuestion.is_closed = result.is_closed;
+                updateCloseUI();
+                KnowHow.showNotification(result.message, 'success');
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
+            }
+            document.getElementById('question-menu-dropdown').classList.remove('show');
+        }
+
+        function updateCloseUI() {
+            const closeText = document.getElementById('close-text');
+            const closedBanner = document.getElementById('closed-banner');
+            const answerForm = document.querySelector('.editor-container');
+            const answerButton = document.querySelector('button[onclick="submitAnswer()"]');
+
+            if (currentQuestion.is_closed) {
+                closeText.textContent = 'Reopen';
+                closedBanner.style.display = 'block';
+                // Disable answer form for non-admin/non-owner
+                const isOwner = currentQuestion.user_id === currentUser.user.id;
+                if (!isOwner && !isAdmin) {
+                    if (answerForm) answerForm.style.opacity = '0.5';
+                    if (answerButton) {
+                        answerButton.disabled = true;
+                        answerButton.title = 'This question is closed';
+                    }
+                }
+            } else {
+                closeText.textContent = 'Close';
+                closedBanner.style.display = 'none';
+                if (answerForm) answerForm.style.opacity = '1';
+                if (answerButton) {
+                    answerButton.disabled = false;
+                    answerButton.title = '';
+                }
+            }
+        }
+
+        async function deleteQuestion() {
+            if (!confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
+                return;
+            }
+            try {
+                await KnowHow.apiCall(`/questions/${questionId}`, { method: 'DELETE' });
+                KnowHow.showNotification('Question deleted successfully', 'success');
+                window.location.href = `/team/${teamSlug}/questions`;
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
+            }
+        }
+
+        function updateMenuPermissions() {
+            const isOwner = currentQuestion.user_id === currentUser.user.id;
+            const canEdit = isOwner;
+            const canDelete = isOwner || isAdmin;
+            const canClose = isOwner || isAdmin;
+
+            // Show/hide menu items based on permissions
+            document.getElementById('edit-menu-item').style.display = canEdit ? 'flex' : 'none';
+            document.getElementById('close-menu-item').style.display = canClose ? 'flex' : 'none';
+            document.getElementById('delete-menu-item').style.display = canDelete ? 'flex' : 'none';
+            document.getElementById('menu-divider-edit').style.display = (canEdit || canClose || canDelete) ? 'block' : 'none';
+        }
+
+        function toggleAnswerMenu(event, answerId) {
+            event.stopPropagation();
+            // Close all other dropdowns first
+            document.querySelectorAll('.question-menu-dropdown').forEach(d => {
+                if (d.id !== `answer-menu-dropdown-${answerId}`) {
+                    d.classList.remove('show');
+                }
+            });
+            const dropdown = document.getElementById(`answer-menu-dropdown-${answerId}`);
+            dropdown.classList.toggle('show');
+        }
+
+        async function shareAnswer(answerId) {
+            const url = `${window.location.origin}${window.location.pathname}#answer-${answerId}`;
+            try {
+                await navigator.clipboard.writeText(url);
+                KnowHow.showNotification('Link copied to clipboard', 'success');
+            } catch (err) {
+                const input = document.createElement('input');
+                input.value = url;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                KnowHow.showNotification('Link copied to clipboard', 'success');
+            }
+            document.getElementById(`answer-menu-dropdown-${answerId}`).classList.remove('show');
+        }
+
+        async function deleteAnswer(answerId) {
+            if (!confirm('Are you sure you want to delete this answer? This action cannot be undone.')) {
+                return;
+            }
+            try {
+                await KnowHow.apiCall(`/answers/${answerId}`, { method: 'DELETE' });
+                KnowHow.showNotification('Answer deleted successfully', 'success');
+                await loadAnswers();
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
+            }
+        }
+
         async function init() {
-            currentUser = await StackInternal.checkAuth();
+            currentUser = await KnowHow.checkAuth();
             if (!currentUser) return;
 
             await loadTeamInfo();
@@ -182,15 +380,51 @@
             // Set profile link
             document.getElementById('user-menu').href = `/team/${teamSlug}/users/${currentUser.user.id}`;
 
+            await setupNavigation();
             await loadQuestion();
             await loadAnswers();
+            await checkBookmarkStatus();
+            await checkFollowStatus();
             setupSearch();
-            setupNavigation();
         }
 
-        function setupNavigation() {
+        async function setupNavigation() {
             document.getElementById('nav-questions').href = `/team/${teamSlug}/questions`;
             document.getElementById('nav-members').href = `/team/${teamSlug}/members`;
+            document.getElementById('nav-bookmarks').href = `/team/${teamSlug}/bookmarks`;
+            document.getElementById('nav-notifications').href = `/team/${teamSlug}/notifications`;
+            document.getElementById('nav-admin').href = `/team/${teamSlug}/admin`;
+            document.getElementById('notification-bell').href = `/team/${teamSlug}/notifications`;
+
+            // Check if user is admin to show admin tab
+            try {
+                const members = await KnowHow.apiCall(`/teams/${teamSlug}/members`);
+                const currentMember = members.find(m => m.id === currentUser.user.id);
+                if (currentMember && currentMember.role === 'admin') {
+                    document.getElementById('nav-admin').style.display = 'block';
+                    isAdmin = true;
+                }
+            } catch (error) {
+                console.error('Check admin status error:', error);
+            }
+
+            // Update notification badge
+            updateNotificationBadge();
+        }
+
+        async function updateNotificationBadge() {
+            try {
+                const data = await KnowHow.apiCall('/notifications/unread/count');
+                const badge = document.getElementById('notification-badge');
+                if (data.count > 0) {
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Failed to update notification badge:', error);
+            }
         }
 
         function setupSearch() {
@@ -217,7 +451,7 @@
 
         async function loadTeamInfo() {
             try {
-                currentTeam = await StackInternal.apiCall(`/teams/${teamSlug}`);
+                currentTeam = await KnowHow.apiCall(`/teams/${teamSlug}`);
                 document.getElementById('team-name').textContent = currentTeam.name;
                 document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
                 document.getElementById('team-selector').href = `/team/${teamSlug}/questions`;
@@ -228,17 +462,17 @@
 
         async function loadQuestion() {
             try {
-                currentQuestion = await StackInternal.apiCall(`/questions/${questionId}`);
+                currentQuestion = await KnowHow.apiCall(`/questions/${questionId}`);
 
                 document.getElementById('question-title').textContent = currentQuestion.title;
-                document.title = currentQuestion.title + ' - Stack Internal';
+                document.title = currentQuestion.title + ' - KnowHow';
 
-                document.getElementById('asked-date').textContent = StackInternal.formatDate(currentQuestion.created_at);
-                document.getElementById('modified-date').textContent = StackInternal.formatDate(currentQuestion.updated_at);
+                document.getElementById('asked-date').textContent = KnowHow.formatDate(currentQuestion.created_at);
+                document.getElementById('modified-date').textContent = KnowHow.formatDate(currentQuestion.updated_at);
                 document.getElementById('view-count').textContent = currentQuestion.view_count + ' time' + (currentQuestion.view_count !== 1 ? 's' : '');
 
                 document.getElementById('question-score').textContent = currentQuestion.score;
-                document.getElementById('question-body').innerHTML = StackInternal.parseMarkdown(currentQuestion.body);
+                document.getElementById('question-body').innerHTML = KnowHow.parseMarkdown(currentQuestion.body);
 
                 // Tags
                 if (currentQuestion.tags && currentQuestion.tags.length > 0) {
@@ -250,9 +484,9 @@
                 // User info
                 document.getElementById('question-user').innerHTML = `
                     <div class="user-details">
-                        ${StackInternal.createUserAvatar(currentQuestion)}
+                        ${KnowHow.createUserAvatar(currentQuestion)}
                         <div class="user-text">
-                            <div>asked ${StackInternal.formatDate(currentQuestion.created_at)}</div>
+                            <div>asked ${KnowHow.formatDate(currentQuestion.created_at)}</div>
                             <a href="/team/${teamSlug}/users/${currentQuestion.user_id}" class="user-name">${currentQuestion.first_name} ${currentQuestion.last_name}</a>
                         </div>
                     </div>
@@ -270,23 +504,19 @@
                 // Load comments
                 await loadComments('question', questionId);
 
-                // Show Edit button only if user is the question owner
-                const editButton = document.getElementById('edit-question');
-                if (currentQuestion.user_id === currentUser.user.id) {
-                    editButton.style.display = 'inline';
-                } else {
-                    editButton.style.display = 'none';
-                }
+                // Update menu permissions and close UI
+                updateMenuPermissions();
+                updateCloseUI();
             } catch (error) {
                 console.error('Load question error:', error);
-                StackInternal.showNotification('Failed to load question', 'error');
+                KnowHow.showNotification('Failed to load question', 'error');
             }
         }
 
         async function loadAnswers() {
             try {
                 const sort = document.getElementById('sort-answers').value;
-                const answers = await StackInternal.apiCall(`/answers/question/${questionId}?sort=${sort}`);
+                const answers = await KnowHow.apiCall(`/answers/question/${questionId}?sort=${sort}`);
 
                 document.getElementById('answer-count').textContent = answers.length;
                 document.getElementById('answer-plural').textContent = answers.length === 1 ? '' : 's';
@@ -310,7 +540,8 @@
         function renderAnswer(answer) {
             const acceptedBadge = answer.is_accepted ? '<div class="accepted-badge">✓ Approved Answer</div>' : '';
             const isOwner = currentUser && answer.user_id === currentUser.user.id;
-            const editLink = isOwner ? `<a href="#" class="action-link" onclick="showAnswerEditForm(${answer.id}); return false;">Edit</a>` : '';
+            const canEdit = isOwner;
+            const canDelete = isOwner || isAdmin;
 
             return `
                 <div class="answer ${answer.is_accepted ? 'accepted' : ''}" id="answer-${answer.id}">
@@ -323,13 +554,28 @@
 
                     <div class="post-body">
                         ${acceptedBadge}
-                        <div class="post-content" id="answer-${answer.id}-content">${StackInternal.parseMarkdown(answer.body)}</div>
+                        <div class="post-content" id="answer-${answer.id}-content">${KnowHow.parseMarkdown(answer.body)}</div>
 
-                        <div class="post-actions" id="answer-${answer.id}-actions">
-                            <a href="#" class="action-link">Share</a>
-                            ${editLink}
-                            <a href="#" class="action-link">Follow</a>
-                            <a href="#" class="action-link">Delete</a>
+                        <div class="post-actions" id="answer-${answer.id}-actions" style="justify-content: flex-end;">
+                            <div class="question-menu-container">
+                                <button class="question-menu-btn" onclick="toggleAnswerMenu(event, ${answer.id})" title="More actions">
+                                    &#8942;
+                                </button>
+                                <div class="question-menu-dropdown" id="answer-menu-dropdown-${answer.id}">
+                                    <button class="question-menu-item" onclick="shareAnswer(${answer.id})">
+                                        <span>&#128279;</span> Share
+                                    </button>
+                                    ${canEdit ? `
+                                    <div class="question-menu-divider"></div>
+                                    <button class="question-menu-item" onclick="showAnswerEditForm(${answer.id})">
+                                        <span>&#9998;</span> Edit
+                                    </button>` : ''}
+                                    ${canDelete ? `
+                                    <button class="question-menu-item danger" onclick="deleteAnswer(${answer.id})">
+                                        <span>&#128465;</span> Delete
+                                    </button>` : ''}
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Edit Form (hidden by default) -->
@@ -357,9 +603,9 @@
                             <div></div>
                             <div class="post-user">
                                 <div class="user-details">
-                                    ${StackInternal.createUserAvatar(answer)}
+                                    ${KnowHow.createUserAvatar(answer)}
                                     <div class="user-text">
-                                        <div>answered ${StackInternal.formatDate(answer.created_at)}</div>
+                                        <div>answered ${KnowHow.formatDate(answer.created_at)}</div>
                                         <a href="/team/${teamSlug}/users/${answer.user_id}" class="user-name">${answer.first_name} ${answer.last_name}</a>
                                     </div>
                                 </div>
@@ -390,12 +636,12 @@
                     votableId = type.replace('answer-', '');
                 }
 
-                const result = await StackInternal.apiCall('/votes', {
+                const result = await KnowHow.apiCall('/votes', {
                     method: 'POST',
                     body: JSON.stringify({ votableType, votableId, voteType })
                 });
 
-                StackInternal.showNotification(result.message, 'success');
+                KnowHow.showNotification(result.message, 'success');
 
                 // Reload to update scores
                 if (type === 'question') {
@@ -404,52 +650,99 @@
                     await loadAnswers();
                 }
             } catch (error) {
-                StackInternal.showNotification(error.message, 'error');
+                KnowHow.showNotification(error.message, 'error');
             }
         }
 
         async function submitAnswer() {
+            // Check if question is closed
+            if (currentQuestion.is_closed) {
+                const isOwner = currentQuestion.user_id === currentUser.user.id;
+                if (!isOwner && !isAdmin) {
+                    KnowHow.showNotification('This question is closed and not accepting new answers', 'error');
+                    return;
+                }
+            }
+
             const body = document.getElementById('answer-body').value.trim();
 
             if (!body) {
-                StackInternal.showNotification('Answer body is required', 'error');
+                KnowHow.showNotification('Answer body is required', 'error');
                 return;
             }
 
             try {
-                await StackInternal.apiCall('/answers', {
+                await KnowHow.apiCall('/answers', {
                     method: 'POST',
                     body: JSON.stringify({ questionId, body })
                 });
 
-                StackInternal.showNotification('Answer posted successfully', 'success');
+                KnowHow.showNotification('Answer posted successfully', 'success');
                 document.getElementById('answer-body').value = '';
                 await loadAnswers();
             } catch (error) {
-                StackInternal.showNotification(error.message, 'error');
+                KnowHow.showNotification(error.message, 'error');
             }
         }
 
         async function acceptAnswer(answerId) {
             try {
-                await StackInternal.apiCall(`/answers/${answerId}/accept`, { method: 'POST' });
-                StackInternal.showNotification('Answer marked as approved', 'success');
+                await KnowHow.apiCall(`/answers/${answerId}/accept`, { method: 'POST' });
+                KnowHow.showNotification('Answer marked as approved', 'success');
                 await loadAnswers();
             } catch (error) {
-                StackInternal.showNotification(error.message, 'error');
+                KnowHow.showNotification(error.message, 'error');
+            }
+        }
+
+        async function checkBookmarkStatus() {
+            try {
+                const result = await KnowHow.apiCall(`/bookmarks/check?questionId=${questionId}`);
+                const btn = document.getElementById('bookmark-btn');
+                if (result.bookmarked) {
+                    btn.classList.add('active');
+                    btn.title = 'Remove bookmark';
+                } else {
+                    btn.classList.remove('active');
+                    btn.title = 'Bookmark this question';
+                }
+            } catch (error) {
+                console.error('Check bookmark error:', error);
+            }
+        }
+
+        async function toggleBookmark() {
+            try {
+                const result = await KnowHow.apiCall('/bookmarks', {
+                    method: 'POST',
+                    body: JSON.stringify({ questionId: parseInt(questionId) })
+                });
+
+                const btn = document.getElementById('bookmark-btn');
+                if (result.bookmarked) {
+                    btn.classList.add('active');
+                    btn.title = 'Remove bookmark';
+                    KnowHow.showNotification('Question bookmarked', 'success');
+                } else {
+                    btn.classList.remove('active');
+                    btn.title = 'Bookmark this question';
+                    KnowHow.showNotification('Bookmark removed', 'success');
+                }
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
             }
         }
 
         async function loadComments(parentType, parentId) {
             try {
-                const comments = await StackInternal.apiCall(`/comments?parentType=${parentType}&parentId=${parentId}`);
+                const comments = await KnowHow.apiCall(`/comments?parentType=${parentType}&parentId=${parentId}`);
                 const container = document.getElementById(`${parentType}-${parentId}-comments`) || document.getElementById('question-comments');
 
                 if (comments.length > 0) {
                     container.innerHTML = comments.map(c => `
                         <div class="comment">
                             <div class="comment-text">${c.body}</div>
-                            <div class="comment-meta">${c.first_name} ${c.last_name} - ${StackInternal.formatDate(c.created_at)}</div>
+                            <div class="comment-meta">${c.first_name} ${c.last_name} - ${KnowHow.formatDate(c.created_at)}</div>
                         </div>
                     `).join('');
                 }
@@ -475,17 +768,17 @@
                 const parentType = type.includes('answer') ? 'answer' : 'question';
                 const parentId = type.includes('answer') ? type.replace('answer-', '') : questionId;
 
-                await StackInternal.apiCall('/comments', {
+                await KnowHow.apiCall('/comments', {
                     method: 'POST',
                     body: JSON.stringify({ parentType, parentId, body: text })
                 });
 
-                StackInternal.showNotification('Comment added', 'success');
+                KnowHow.showNotification('Comment added', 'success');
                 document.getElementById(`${type}-comment-text`).value = '';
                 hideCommentForm(type);
                 await loadComments(parentType, parentId);
             } catch (error) {
-                StackInternal.showNotification(error.message, 'error');
+                KnowHow.showNotification(error.message, 'error');
             }
         }
 
@@ -508,9 +801,12 @@
         function showEditForm() {
             // Check if user is the question owner
             if (currentQuestion.user_id !== currentUser.user.id) {
-                StackInternal.showNotification('Only the question owner can edit', 'error');
+                KnowHow.showNotification('Only the question owner can edit', 'error');
                 return;
             }
+
+            // Close the dropdown menu
+            document.getElementById('question-menu-dropdown').classList.remove('show');
 
             // Populate form with current values
             document.getElementById('edit-title').value = currentQuestion.title;
@@ -530,7 +826,7 @@
         function cancelEdit() {
             // Show question content and hide edit form
             document.getElementById('question-body').style.display = 'block';
-            document.querySelector('.post-actions').style.display = 'block';
+            document.querySelector('.post-actions').style.display = 'flex';
             document.getElementById('question-tags').style.display = 'flex';
             document.getElementById('edit-form').style.display = 'none';
         }
@@ -541,17 +837,17 @@
             const tags = document.getElementById('edit-tags').value.trim();
 
             if (!title || !body) {
-                StackInternal.showNotification('Title and body are required', 'error');
+                KnowHow.showNotification('Title and body are required', 'error');
                 return;
             }
 
             try {
-                await StackInternal.apiCall(`/questions/${questionId}`, {
+                await KnowHow.apiCall(`/questions/${questionId}`, {
                     method: 'PUT',
                     body: JSON.stringify({ title, body, tags })
                 });
 
-                StackInternal.showNotification('Question updated successfully', 'success');
+                KnowHow.showNotification('Question updated successfully', 'success');
 
                 // Reload the question to show updated content
                 await loadQuestion();
@@ -559,7 +855,7 @@
                 // Hide edit form and show content
                 cancelEdit();
             } catch (error) {
-                StackInternal.showNotification(error.message, 'error');
+                KnowHow.showNotification(error.message, 'error');
             }
         }
 
@@ -576,6 +872,10 @@
         }
 
         function showAnswerEditForm(answerId) {
+            // Close dropdown menu
+            const dropdown = document.getElementById(`answer-menu-dropdown-${answerId}`);
+            if (dropdown) dropdown.classList.remove('show');
+
             // Hide answer content and actions
             document.getElementById(`answer-${answerId}-content`).style.display = 'none';
             document.getElementById(`answer-${answerId}-actions`).style.display = 'none';
@@ -597,17 +897,17 @@
             const body = document.getElementById(`answer-${answerId}-edit-body`).value.trim();
 
             if (!body) {
-                StackInternal.showNotification('Answer body is required', 'error');
+                KnowHow.showNotification('Answer body is required', 'error');
                 return;
             }
 
             try {
-                await StackInternal.apiCall(`/answers/${answerId}`, {
+                await KnowHow.apiCall(`/answers/${answerId}`, {
                     method: 'PUT',
                     body: JSON.stringify({ body })
                 });
 
-                StackInternal.showNotification('Answer updated successfully', 'success');
+                KnowHow.showNotification('Answer updated successfully', 'success');
 
                 // Reload answers to show updated content
                 await loadAnswers();
@@ -615,7 +915,7 @@
                 // Hide edit form
                 cancelAnswerEdit(answerId);
             } catch (error) {
-                StackInternal.showNotification(error.message, 'error');
+                KnowHow.showNotification(error.message, 'error');
             }
         }
 

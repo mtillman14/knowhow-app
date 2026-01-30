@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: knowhow-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: knowhow
+      MYSQL_USER: knowhow
+      MYSQL_PASSWORD: knowhow123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: node:20
+    container_name: knowhow-app
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      DB_HOST: db
+      DB_USER: knowhow
+      DB_PASSWORD: knowhow123
+      DB_NAME: knowhow
+      DB_PORT: 3306
+      PORT: 3000
+      NODE_ENV: development
+      JWT_SECRET: dev-jwt-secret-change-in-production
+      SESSION_SECRET: dev-session-secret-change-in-production
+    command: sh -c "npm install && npm start"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

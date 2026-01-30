@@ -1,4 +1,4 @@
-// Stack Internal - Main JavaScript
+// KnowHow - Main JavaScript
 
 // API Base URL
 const API_BASE = '/api';
@@ -171,7 +171,7 @@ if (!document.getElementById('notification-styles')) {
 }
 
 // Export for use in other files
-window.StackInternal = {
+window.KnowHow = {
     apiCall,
     getCurrentUser,
     checkAuth,

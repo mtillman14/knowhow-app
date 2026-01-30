@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Invite - KnowHow</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <svg viewBox="0 0 32 32" fill="currentColor">
+                    <path d="M26 16v10H6V16H4v12h24V16z"/>
+                    <path d="M6 10v6h20v-6H6zm18 4H8v-2h16v2z"/>
+                    <path d="M6 4v4h20V4H6zm18 2H8V6h16v2z"/>
+                </svg>
+                KnowHow
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container" style="margin-top: 100px;">
+        <div class="form-container" style="text-align: center;">
+            <div id="loading-state">
+                <div class="loading">
+                    <div class="loading-icon"></div>
+                    <p>Loading invite...</p>
+                </div>
+            </div>
+
+            <div id="invite-details" style="display: none;">
+                <h1 style="margin-bottom: 24px;">You've been invited!</h1>
+                <p style="font-size: 18px; margin-bottom: 8px;">
+                    <strong id="inviter-name"></strong> has invited you to join
+                </p>
+                <h2 id="team-name" style="color: #0077cc; margin-bottom: 24px;"></h2>
+                <p style="color: #6a737c; margin-bottom: 32px;">
+                    Invite sent to: <strong id="invite-email"></strong>
+                </p>
+
+                <div id="auth-required" style="display: none;">
+                    <p style="margin-bottom: 16px;">Please log in or register to accept this invite.</p>
+                    <a href="/" class="btn btn-primary btn-large">Log In or Register</a>
+                </div>
+
+                <div id="accept-section" style="display: none;">
+                    <button class="btn btn-primary btn-large" onclick="acceptInvite()">Accept Invite</button>
+                    <div style="margin-top: 16px;">
+                        <a href="#" onclick="signOut(); return false;" style="color: #6a737c; font-size: 14px;">Sign out and use a different account</a>
+                    </div>
+                </div>
+
+                <div id="email-mismatch" style="display: none; color: #d32f2f;">
+                    <p>This invite was sent to a different email address.</p>
+                    <p style="margin-top: 8px; color: #6a737c;">
+                        Please log in with the email address the invite was sent to, or ask for a new invite.
+                    </p>
+                    <button class="btn btn-secondary" style="margin-top: 16px;" onclick="signOut()">Sign out</button>
+                </div>
+            </div>
+
+            <div id="error-state" style="display: none;">
+                <h1 style="margin-bottom: 24px; color: #d32f2f;">Invalid Invite</h1>
+                <p id="error-message" style="color: #6a737c; margin-bottom: 24px;"></p>
+                <a href="/" class="btn btn-primary">Go to Home</a>
+            </div>
+
+            <div id="success-state" style="display: none;">
+                <h1 style="margin-bottom: 24px; color: #5fa146;">Welcome to the team!</h1>
+                <p style="margin-bottom: 24px;">You have successfully joined the team.</p>
+                <a id="team-link" href="#" class="btn btn-primary btn-large">Go to Team</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        const pathParts = window.location.pathname.split('/');
+        const token = pathParts[2];
+
+        let inviteDetails = null;
+
+        async function init() {
+            try {
+                // Get invite details
+                const response = await fetch(`/api/teams/invites/${token}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showError(data.error || 'Invalid invite');
+                    return;
+                }
+
+                inviteDetails = data;
+
+                // Show invite details
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('invite-details').style.display = 'block';
+
+                document.getElementById('inviter-name').textContent = data.invitedBy;
+                document.getElementById('team-name').textContent = data.teamName;
+                document.getElementById('invite-email').textContent = data.email;
+
+                // Check if user is logged in
+                const user = await KnowHow.getCurrentUser();
+
+                if (!user) {
+                    // Store invite token and redirect to login
+                    localStorage.setItem('pendingInviteToken', token);
+                    document.getElementById('auth-required').style.display = 'block';
+                } else {
+                    // Check if email matches
+                    if (user.user.email.toLowerCase() === data.email.toLowerCase()) {
+                        document.getElementById('accept-section').style.display = 'block';
+                    } else {
+                        document.getElementById('email-mismatch').style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Load invite error:', error);
+                showError('Failed to load invite details');
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('error-state').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+
+        async function acceptInvite() {
+            try {
+                const result = await KnowHow.apiCall('/teams/invites/accept', {
+                    method: 'POST',
+                    body: JSON.stringify({ token })
+                });
+
+                // Clear pending invite
+                localStorage.removeItem('pendingInviteToken');
+
+                // Show success
+                document.getElementById('invite-details').style.display = 'none';
+                document.getElementById('success-state').style.display = 'block';
+                document.getElementById('team-link').href = `/team/${result.teamSlug}/questions`;
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
+            }
+        }
+
+        async function signOut() {
+            try {
+                await KnowHow.apiCall('/auth/logout', { method: 'POST' });
+            } catch (error) {
+                // Continue even if logout API fails
+            }
+            // Reload page to show auth-required state
+            window.location.reload();
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,13 +1,13 @@
 {
-  "name": "stack-internal",
+  "name": "knowhow",
   "version": "1.0.0",
-  "description": "Self-hosted Stack Overflow for Teams clone",
+  "description": "KnowHow - Self-hosted knowledge sharing platform for teams",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": ["stackoverflow", "q&a", "knowledge-base"],
+  "keywords": ["knowhow", "q&a", "knowledge-base", "team-collaboration"],
   "author": "",
   "license": "MIT",
   "dependencies": {

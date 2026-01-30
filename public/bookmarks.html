@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookmarks - KnowHow</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <svg viewBox="0 0 32 32" fill="currentColor">
+                    <path d="M26 16v10H6V16H4v12h24V16z"/>
+                    <path d="M6 10v6h20v-6H6zm18 4H8v-2h16v2z"/>
+                    <path d="M6 4v4h20V4H6zm18 2H8V6h16v2z"/>
+                </svg>
+                KnowHow
+            </a>
+
+            <a class="team-selector" id="team-selector" href="#" style="text-decoration: none; color: inherit;">
+                <div class="team-icon" id="team-icon">T</div>
+                <span id="team-name">Loading...</span>
+            </a>
+
+            <div class="header-search">
+                <input type="text" placeholder="Search..." id="search-input">
+            </div>
+
+            <div class="header-actions">
+                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">&#128269;</span>
+                <a href="#" id="notification-bell" class="notification-bell" title="Notifications" style="position: relative; text-decoration: none;">
+                    <span class="header-icon">&#128276;</span>
+                    <span class="notification-badge" id="notification-badge" style="display: none; position: absolute; top: -8px; right: -8px; background: #d32f2f; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; min-width: 16px; text-align: center;">0</span>
+                </a>
+                <button class="btn btn-primary" onclick="window.location.href='ask'">Ask a question</button>
+                <a class="user-menu" id="user-menu" href="#" style="text-decoration: none; color: inherit; cursor: pointer;">
+                    <span class="header-icon">&#128100;</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div style="border-bottom: 1px solid #d6d9dc; background: #f8f9f9;">
+        <div class="container">
+            <div style="display: flex; gap: 0;">
+                <a href="#" id="nav-questions" class="nav-tab">Questions</a>
+                <a href="#" id="nav-members" class="nav-tab">Members</a>
+                <a href="#" id="nav-bookmarks" class="nav-tab active">Bookmarks</a>
+                <a href="#" id="nav-notifications" class="nav-tab">Notifications</a>
+                <a href="#" id="nav-admin" class="nav-tab" style="display: none;">Admin</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="content">
+            <div class="questions-header">
+                <h1>Your Bookmarks</h1>
+            </div>
+
+            <div class="question-count" id="bookmark-count">Loading...</div>
+
+            <!-- Bookmarks List -->
+            <div id="bookmarks-list">
+                <div class="loading">
+                    <div class="loading-icon"></div>
+                    <p>Loading bookmarks...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentTeam = null;
+
+        // Get team slug from URL
+        const pathParts = window.location.pathname.split('/');
+        const teamSlug = pathParts[2];
+
+        async function init() {
+            // Check auth
+            const user = await KnowHow.checkAuth();
+            if (!user) return;
+
+            // Load team info
+            await loadTeamInfo();
+
+            // Set profile link
+            document.getElementById('user-menu').href = `/team/${teamSlug}/users/${user.user.id}`;
+
+            // Load bookmarks
+            await loadBookmarks();
+
+            // Setup search
+            setupSearch();
+
+            // Setup navigation
+            setupNavigation();
+        }
+
+        async function setupNavigation() {
+            document.getElementById('nav-questions').href = `/team/${teamSlug}/questions`;
+            document.getElementById('nav-members').href = `/team/${teamSlug}/members`;
+            document.getElementById('nav-bookmarks').href = `/team/${teamSlug}/bookmarks`;
+            document.getElementById('nav-notifications').href = `/team/${teamSlug}/notifications`;
+            document.getElementById('nav-admin').href = `/team/${teamSlug}/admin`;
+            document.getElementById('notification-bell').href = `/team/${teamSlug}/notifications`;
+
+            // Check if user is admin to show admin tab
+            try {
+                const members = await KnowHow.apiCall(`/teams/${teamSlug}/members`);
+                const user = await KnowHow.getCurrentUser();
+                const currentMember = members.find(m => m.id === user.user.id);
+                if (currentMember && currentMember.role === 'admin') {
+                    document.getElementById('nav-admin').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Check admin status error:', error);
+            }
+
+            // Update notification badge
+            updateNotificationBadge();
+        }
+
+        async function updateNotificationBadge() {
+            try {
+                const data = await KnowHow.apiCall('/notifications/unread/count');
+                const badge = document.getElementById('notification-badge');
+                if (data.count > 0) {
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Failed to update notification badge:', error);
+            }
+        }
+
+        async function loadTeamInfo() {
+            try {
+                currentTeam = await KnowHow.apiCall(`/teams/${teamSlug}`);
+
+                document.getElementById('team-name').textContent = currentTeam.name;
+                document.getElementById('team-icon').textContent = currentTeam.name[0].toUpperCase();
+                document.getElementById('team-selector').href = `/team/${teamSlug}/questions`;
+                document.title = `Bookmarks - ${currentTeam.name}`;
+            } catch (error) {
+                KnowHow.showNotification('Failed to load team info', 'error');
+            }
+        }
+
+        async function loadBookmarks() {
+            try {
+                const bookmarks = await KnowHow.apiCall(`/bookmarks?teamId=${currentTeam.id}`);
+
+                // Update count
+                document.getElementById('bookmark-count').textContent = `${bookmarks.length} saved question${bookmarks.length !== 1 ? 's' : ''}`;
+
+                // Render bookmarks
+                const bookmarksList = document.getElementById('bookmarks-list');
+                if (bookmarks.length === 0) {
+                    bookmarksList.innerHTML = `
+                        <div style="text-align: center; padding: 60px 20px; color: #6a737c;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">🔖</div>
+                            <h3 style="margin-bottom: 8px; color: #3c4146;">No bookmarks yet</h3>
+                            <p>Save questions you want to revisit by clicking the bookmark icon on any question.</p>
+                            <a href="/team/${teamSlug}/questions" class="btn btn-primary" style="margin-top: 16px;">Browse Questions</a>
+                        </div>
+                    `;
+                } else {
+                    bookmarksList.innerHTML = bookmarks.map(q => renderBookmark(q)).join('');
+                }
+            } catch (error) {
+                console.error('Load bookmarks error:', error);
+                KnowHow.showNotification('Failed to load bookmarks', 'error');
+            }
+        }
+
+        function renderBookmark(q) {
+            const tags = q.tags ? q.tags.map(tag =>
+                `<a href="/team/${teamSlug}/questions?tag=${encodeURIComponent(tag.name)}" class="tag">${tag.name}</a>`
+            ).join('') : '';
+
+            const hasAccepted = q.has_accepted_answer > 0;
+
+            return `
+                <div class="question-item">
+                    <div class="question-stats">
+                        <div class="stat">
+                            <span class="stat-value">${q.score}</span>
+                            <span class="stat-label">votes</span>
+                        </div>
+                        <div class="stat ${hasAccepted ? 'has-accepted' : ''}">
+                            <span class="stat-value">${q.answer_count}</span>
+                            <span class="stat-label">answer${q.answer_count !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">${q.view_count}</span>
+                            <span class="stat-label">view${q.view_count !== 1 ? 's' : ''}</span>
+                        </div>
+                    </div>
+                    <div class="question-content">
+                        <h3 class="question-title">
+                            <a href="/team/${teamSlug}/questions/${q.id}">${q.title}</a>
+                        </h3>
+                        <div class="question-excerpt">
+                            ${q.body.substring(0, 200)}${q.body.length > 200 ? '...' : ''}
+                        </div>
+                        <div class="question-tags">
+                            ${tags}
+                        </div>
+                        <div class="question-meta">
+                            <div class="user-info">
+                                ${KnowHow.createUserAvatar(q)}
+                                <a href="/team/${teamSlug}/users/${q.user_id}" style="color: #0077cc; text-decoration: none;">${q.first_name} ${q.last_name}</a>
+                            </div>
+                            <span>asked ${KnowHow.formatDate(q.created_at)}</span>
+                            <span style="margin-left: 12px; color: #6a737c;">bookmarked ${KnowHow.formatDate(q.bookmarked_at)}</span>
+                            <button class="btn" style="margin-left: 12px; padding: 4px 8px; font-size: 12px;" onclick="removeBookmark(${q.id}, this)">Remove</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function removeBookmark(questionId, btn) {
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Removing...';
+
+                await KnowHow.apiCall('/bookmarks', {
+                    method: 'POST',
+                    body: JSON.stringify({ questionId })
+                });
+
+                KnowHow.showNotification('Bookmark removed', 'success');
+                await loadBookmarks();
+            } catch (error) {
+                btn.disabled = false;
+                btn.textContent = 'Remove';
+                KnowHow.showNotification(error.message, 'error');
+            }
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('search-input');
+            const searchIcon = document.getElementById('search-icon');
+
+            const performSearch = () => {
+                const query = searchInput.value.trim();
+                if (query) {
+                    window.location.href = `/team/${teamSlug}/questions?search=${encodeURIComponent(query)}`;
+                }
+            };
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            searchIcon.addEventListener('click', () => {
+                performSearch();
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
