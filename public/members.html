@@ -253,11 +253,33 @@
                         </div>
 
                         <div style="margin-top: 12px; font-size: 12px; color: #9199a1;">
-                            Member since ${KnowHow.formatDate(member.joined_at)}
+                            ${formatMembershipDates(member)}
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        function formatMembershipDates(member) {
+            const parts = [];
+
+            if (member.started_at) {
+                const startDate = new Date(member.started_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                if (member.ended_at) {
+                    const endDate = new Date(member.ended_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                    parts.push(`${startDate} – ${endDate}`);
+                } else {
+                    parts.push(`Started ${startDate}`);
+                }
+            } else if (member.ended_at) {
+                const endDate = new Date(member.ended_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                parts.push(`Until ${endDate}`);
+            }
+
+            // Always show member since date
+            parts.push(`Member since ${KnowHow.formatDate(member.joined_at)}`);
+
+            return parts.join(' • ');
         }
 
         function goToAsk() {

@@ -1,61 +1,145 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>KnowHow - Collaborate and share knowledge</title>
-    <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
     <div class="landing">
-        <h1>KnowHow</h1>
-        <p>Collaborate, connect, and grow your team's wisdom</p>
+      <h1>KnowHow</h1>
+      <p>Collaborate, connect, and grow your team's wisdom</p>
 
-        <div id="welcome-container">
-            <p class="welcome-message" id="welcome-message">Welcome! You are not on any Teams.</p>
-            <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-                <a href="/create-team.html" class="btn btn-large btn-primary">Create a free team</a>
-                <a href="/login.html" class="btn btn-large btn-secondary" id="sign-in-btn">Sign in</a>
-            </div>
+      <div id="welcome-container">
+        <p class="welcome-message" id="welcome-message">
+          Welcome! You are not on any Teams.
+        </p>
+        <div
+          style="
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+          "
+        >
+          <a href="/create-team.html" class="btn btn-large btn-primary"
+            >Create a free team</a
+          >
+          <a
+            href="/login.html"
+            class="btn btn-large btn-secondary"
+            id="sign-in-btn"
+            >Sign in</a
+          >
         </div>
+      </div>
 
-        <div id="teams-list" style="display: none;">
-            <h2>Your Teams</h2>
-            <div id="teams-container"></div>
+      <div id="teams-list" style="display: none">
+        <h2>Your Teams</h2>
+        <div id="teams-container"></div>
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e3e6e8;">
+          <a href="/create-team.html" class="btn btn-secondary">Create another team</a>
+          <button onclick="signOut()" class="btn" style="margin-left: 8px;">Sign out</button>
         </div>
+      </div>
     </div>
 
     <script src="/js/app.js"></script>
     <script>
-        // Check if user is logged in and has teams
-        async function loadUserInfo() {
-            try {
-                const userData = await KnowHow.getCurrentUser();
+      // Check if user is logged in and has teams
+      async function loadUserInfo() {
+        try {
+          const userData = await KnowHow.getCurrentUser();
 
-                if (userData && userData.teams && userData.teams.length > 0) {
-                    // User has teams, show them
-                    document.getElementById('welcome-container').style.display = 'none';
-                    document.getElementById('teams-list').style.display = 'block';
+          if (userData && userData.teams && userData.teams.length > 0) {
+            // User has teams, show them
+            document.getElementById("welcome-container").style.display = "none";
+            document.getElementById("teams-list").style.display = "block";
 
-                    const teamsContainer = document.getElementById('teams-container');
-                    teamsContainer.innerHTML = userData.teams.map(team => `
-                        <div style="padding: 16px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 12px;">
-                            <h3><a href="/team/${team.slug}/questions">${team.name}</a></h3>
-                            <p style="color: #6a737c; margin-top: 8px;">Role: ${team.user_role}</p>
-                        </div>
-                    `).join('');
-                } else if (userData) {
-                    // User is logged in but has no teams
-                    document.getElementById('welcome-message').textContent = `Welcome back, ${userData.user.first_name}! You are not on any Teams yet.`;
-                    document.getElementById('sign-in-btn').style.display = 'none';
-                }
-            } catch (error) {
-                // User not logged in, show welcome message with sign in option
-                console.log('User not logged in');
-            }
+            const teamsContainer = document.getElementById("teams-container");
+            teamsContainer.innerHTML = userData.teams
+              .map(
+                (team) => `
+                        <a href="/team/${team.slug}/questions" class="team-card">
+                            <div class="team-card-icon">${team.name[0].toUpperCase()}</div>
+                            <div class="team-card-info">
+                                <div class="team-card-name">${team.name}</div>
+                                <div class="team-card-role">${team.user_role}</div>
+                            </div>
+                        </a>
+                    `,
+              )
+              .join("");
+          } else if (userData) {
+            // User is logged in but has no teams
+            document.getElementById("welcome-message").textContent =
+              `Welcome back, ${userData.user.first_name}! You are not on any Teams yet.`;
+            document.getElementById("sign-in-btn").textContent = "Sign out";
+            document.getElementById("sign-in-btn").href = "#";
+            document.getElementById("sign-in-btn").onclick = signOut;
+          }
+        } catch (error) {
+          // User not logged in, show welcome message with sign in option
+          // console.log('User not logged in');
         }
+      }
 
-        loadUserInfo();
+      async function signOut() {
+        try {
+          await KnowHow.apiCall('/auth/logout', { method: 'POST' });
+          window.location.reload();
+        } catch (error) {
+          window.location.reload();
+        }
+      }
+
+      loadUserInfo();
     </script>
-</body>
+    <style>
+      .team-card {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        border: 1px solid #d6d9dc;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        text-decoration: none;
+        color: inherit;
+        transition: box-shadow 0.2s, border-color 0.2s;
+      }
+      .team-card:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-color: #0077cc;
+      }
+      .team-card-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #0077cc 0%, #0095ff 100%);
+        color: white;
+        font-size: 20px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        flex-shrink: 0;
+      }
+      .team-card-info {
+        flex: 1;
+      }
+      .team-card-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #0077cc;
+      }
+      .team-card-role {
+        font-size: 13px;
+        color: #6a737c;
+        margin-top: 4px;
+        text-transform: capitalize;
+      }
+    </style>
+  </body>
 </html>

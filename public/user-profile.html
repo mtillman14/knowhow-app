@@ -65,9 +65,13 @@
                 <div style="flex: 1;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <h1 id="user-name" style="font-size: 32px; margin-bottom: 8px;">Loading...</h1>
-                        <button id="sign-out-btn" onclick="signOut()" class="btn btn-secondary" style="display: none;">Sign out</button>
+                        <div id="profile-actions" style="display: none; gap: 8px;">
+                            <button id="leave-team-btn" onclick="showLeaveTeamModal()" class="btn btn-secondary">Leave Team</button>
+                            <button id="sign-out-btn" onclick="signOut()" class="btn btn-secondary">Sign out</button>
+                        </div>
                     </div>
                     <div id="user-meta" style="color: #6a737c; margin-bottom: 16px;"></div>
+                    <div id="membership-dates" style="color: #6a737c; margin-bottom: 16px;"></div>
                     <div id="user-bio" style="margin-top: 12px;"></div>
                 </div>
             </div>
@@ -92,11 +96,31 @@
         </div>
     </div>
 
+    <!-- Leave Team Modal -->
+    <div class="modal-overlay" id="leave-team-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Leave Team</h3>
+                <button class="modal-close" onclick="hideLeaveTeamModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to leave <strong id="leave-team-name"></strong>?</p>
+                <p style="color: #6a737c; margin-top: 8px;">You will lose access to all team content. You can be re-invited later if needed.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="hideLeaveTeamModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmLeaveTeam()">Leave Team</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/app.js"></script>
     <script>
         let currentUser = null;
         let profileUser = null;
         let currentTeam = null;
+        let isAdmin = false;
+        let canEditDates = false;
 
         const pathParts = window.location.pathname.split('/');
         const teamSlug = pathParts[2];
@@ -113,7 +137,10 @@
 
             await loadUserProfile();
             setupSearch();
-            setupNavigation();
+            await setupNavigation();
+
+            // Render membership dates after we know if user can edit
+            renderMembershipDates();
         }
 
         async function setupNavigation() {
@@ -129,7 +156,10 @@
                 const currentMember = members.find(m => m.id === currentUser.user.id);
                 if (currentMember && currentMember.role === 'admin') {
                     document.getElementById('nav-admin').style.display = 'block';
+                    isAdmin = true;
                 }
+                // User can edit dates if viewing own profile or if admin
+                canEditDates = (currentUser.user.id === parseInt(userId)) || isAdmin;
             } catch (error) {
                 console.error('Check admin status error:', error);
             }
@@ -208,9 +238,9 @@
 
                 document.title = `${profileUser.first_name} ${profileUser.last_name} - KnowHow`;
 
-                // Show sign out button if viewing own profile
+                // Show profile actions if viewing own profile
                 if (currentUser.user.id === parseInt(userId)) {
-                    document.getElementById('sign-out-btn').style.display = 'block';
+                    document.getElementById('profile-actions').style.display = 'flex';
                 }
 
                 // Display questions and answers
@@ -334,7 +364,201 @@
             }
         }
 
+        function showLeaveTeamModal() {
+            document.getElementById('leave-team-name').textContent = currentTeam.name;
+            document.getElementById('leave-team-modal').style.display = 'flex';
+        }
+
+        function hideLeaveTeamModal() {
+            document.getElementById('leave-team-modal').style.display = 'none';
+        }
+
+        async function confirmLeaveTeam() {
+            try {
+                await KnowHow.apiCall(`/teams/${teamSlug}/leave`, {
+                    method: 'DELETE'
+                });
+
+                KnowHow.showNotification('You have left the team', 'success');
+                hideLeaveTeamModal();
+
+                // Redirect to home page
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+            } catch (error) {
+                KnowHow.showNotification(error.message, 'error');
+            }
+        }
+
+        function renderMembershipDates() {
+            const container = document.getElementById('membership-dates');
+            const teamData = profileUser.teams.find(t => t.id === currentTeam.id);
+
+            if (!teamData) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const startDate = teamData.started_at ? new Date(teamData.started_at).toISOString().split('T')[0] : '';
+            const endDate = teamData.ended_at ? new Date(teamData.ended_at).toISOString().split('T')[0] : '';
+
+            let dateText = '';
+            if (teamData.started_at) {
+                const startDisplay = new Date(teamData.started_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                if (teamData.ended_at) {
+                    const endDisplay = new Date(teamData.ended_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    dateText = `${startDisplay} – ${endDisplay}`;
+                } else {
+                    dateText = `Started ${startDisplay}`;
+                }
+            } else if (teamData.ended_at) {
+                const endDisplay = new Date(teamData.ended_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                dateText = `Until ${endDisplay}`;
+            }
+
+            if (canEditDates) {
+                container.innerHTML = `
+                    <div id="dates-display" style="display: flex; align-items: center; gap: 8px;">
+                        <span>${dateText || 'No dates set'}</span>
+                        <button onclick="showDatesEdit()" class="btn-link" style="font-size: 13px;">Edit dates</button>
+                    </div>
+                    <div id="dates-edit" style="display: none; margin-top: 8px;">
+                        <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+                            <div>
+                                <label style="display: block; font-size: 12px; margin-bottom: 4px;">Start Date</label>
+                                <input type="date" id="start-date-input" value="${startDate}"
+                                    style="padding: 6px 10px; border: 1px solid #d6d9dc; border-radius: 3px;">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 12px; margin-bottom: 4px;">End Date</label>
+                                <input type="date" id="end-date-input" value="${endDate}"
+                                    style="padding: 6px 10px; border: 1px solid #d6d9dc; border-radius: 3px;">
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="saveMembershipDates()" class="btn btn-primary" style="padding: 6px 12px;">Save</button>
+                                <button onclick="cancelDatesEdit()" class="btn btn-secondary" style="padding: 6px 12px;">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (dateText) {
+                container.innerHTML = `<span>${dateText}</span>`;
+            } else {
+                container.innerHTML = '';
+            }
+        }
+
+        function showDatesEdit() {
+            document.getElementById('dates-display').style.display = 'none';
+            document.getElementById('dates-edit').style.display = 'block';
+        }
+
+        function cancelDatesEdit() {
+            document.getElementById('dates-display').style.display = 'flex';
+            document.getElementById('dates-edit').style.display = 'none';
+            // Reset inputs to original values
+            renderMembershipDates();
+        }
+
+        async function saveMembershipDates() {
+            const startDate = document.getElementById('start-date-input').value;
+            const endDate = document.getElementById('end-date-input').value;
+
+            try {
+                await KnowHow.apiCall(`/users/${userId}/membership/${currentTeam.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        startedAt: startDate || null,
+                        endedAt: endDate || null
+                    })
+                });
+
+                // Update local data
+                const teamData = profileUser.teams.find(t => t.id === currentTeam.id);
+                if (teamData) {
+                    teamData.started_at = startDate || null;
+                    teamData.ended_at = endDate || null;
+                }
+
+                KnowHow.showNotification('Dates updated successfully', 'success');
+                renderMembershipDates();
+                document.getElementById('dates-display').style.display = 'flex';
+                document.getElementById('dates-edit').style.display = 'none';
+            } catch (error) {
+                console.error('Save dates error:', error);
+                KnowHow.showNotification('Failed to update dates', 'error');
+            }
+        }
+
         init();
     </script>
+
+    <style>
+        .btn-link {
+            background: none;
+            border: none;
+            color: #0077cc;
+            cursor: pointer;
+            padding: 0;
+        }
+        .btn-link:hover {
+            text-decoration: underline;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e3e6e8;
+        }
+        .modal-header h3 {
+            margin: 0;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6a737c;
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 16px 20px;
+            border-top: 1px solid #e3e6e8;
+        }
+        .btn-danger {
+            background-color: #d32f2f;
+            color: white;
+            border: 1px solid #d32f2f;
+        }
+        .btn-danger:hover {
+            background-color: #b71c1c;
+        }
+    </style>
 </body>
 </html>

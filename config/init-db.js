@@ -1,25 +1,25 @@
-const mysql = require('mysql2/promise');
-require('dotenv').config();
+const mysql = require("mysql2/promise");
+require("dotenv").config();
 
 async function initializeDatabase() {
-    let connection;
+  let connection;
 
-    try {
-        // Connect to the database
-        connection = await mysql.createConnection({
-            host: process.env.DB_HOST || 'localhost',
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || '',
-            port: process.env.DB_PORT || 3306,
-            database: process.env.DB_NAME || 'knowhow'
-        });
+  try {
+    // Connect to the database
+    connection = await mysql.createConnection({
+      host: process.env.DB_HOST || "localhost",
+      user: process.env.DB_USER || "root",
+      password: process.env.DB_PASSWORD || "",
+      port: process.env.DB_PORT || 3306,
+      database: process.env.DB_NAME || "knowhow",
+    });
 
-        console.log(`✓ Connected to database '${process.env.DB_NAME || 'knowhow'}'`);
+    // console.log(`✓ Connected to database '${process.env.DB_NAME || 'knowhow'}'`);
 
-        // Create tables
-        const tables = [
-            // Users table
-            `CREATE TABLE IF NOT EXISTS users (
+    // Create tables
+    const tables = [
+      // Users table
+      `CREATE TABLE IF NOT EXISTS users (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
@@ -35,8 +35,8 @@ async function initializeDatabase() {
                 INDEX idx_email (email)
             )`,
 
-            // Teams table
-            `CREATE TABLE IF NOT EXISTS teams (
+      // Teams table
+      `CREATE TABLE IF NOT EXISTS teams (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(255) NOT NULL,
                 slug VARCHAR(255) UNIQUE NOT NULL,
@@ -48,21 +48,23 @@ async function initializeDatabase() {
                 INDEX idx_slug (slug)
             )`,
 
-            // Team members junction table
-            `CREATE TABLE IF NOT EXISTS team_members (
+      // Team members junction table
+      `CREATE TABLE IF NOT EXISTS team_members (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 user_id INT NOT NULL,
                 team_id INT NOT NULL,
                 role ENUM('admin', 'member') DEFAULT 'member',
                 joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                started_at DATE DEFAULT NULL,
+                ended_at DATE DEFAULT NULL,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
                 UNIQUE KEY unique_membership (user_id, team_id),
                 INDEX idx_user_team (user_id, team_id)
             )`,
 
-            // Questions table
-            `CREATE TABLE IF NOT EXISTS questions (
+      // Questions table
+      `CREATE TABLE IF NOT EXISTS questions (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 team_id INT NOT NULL,
                 user_id INT NOT NULL,
@@ -85,8 +87,8 @@ async function initializeDatabase() {
                 FULLTEXT idx_search (title, body)
             )`,
 
-            // Answers table
-            `CREATE TABLE IF NOT EXISTS answers (
+      // Answers table
+      `CREATE TABLE IF NOT EXISTS answers (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 question_id INT NOT NULL,
                 user_id INT NOT NULL,
@@ -102,8 +104,8 @@ async function initializeDatabase() {
                 INDEX idx_accepted (is_accepted)
             )`,
 
-            // Comments table (for both questions and answers)
-            `CREATE TABLE IF NOT EXISTS comments (
+      // Comments table (for both questions and answers)
+      `CREATE TABLE IF NOT EXISTS comments (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 parent_type ENUM('question', 'answer') NOT NULL,
                 parent_id INT NOT NULL,
@@ -116,8 +118,8 @@ async function initializeDatabase() {
                 INDEX idx_user (user_id)
             )`,
 
-            // Votes table (for questions and answers)
-            `CREATE TABLE IF NOT EXISTS votes (
+      // Votes table (for questions and answers)
+      `CREATE TABLE IF NOT EXISTS votes (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 votable_type ENUM('question', 'answer') NOT NULL,
                 votable_id INT NOT NULL,
@@ -129,8 +131,8 @@ async function initializeDatabase() {
                 INDEX idx_votable (votable_type, votable_id)
             )`,
 
-            // Tags table
-            `CREATE TABLE IF NOT EXISTS tags (
+      // Tags table
+      `CREATE TABLE IF NOT EXISTS tags (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 team_id INT NOT NULL,
                 name VARCHAR(50) NOT NULL,
@@ -143,8 +145,8 @@ async function initializeDatabase() {
                 INDEX idx_name (name)
             )`,
 
-            // Question-Tag junction table
-            `CREATE TABLE IF NOT EXISTS question_tags (
+      // Question-Tag junction table
+      `CREATE TABLE IF NOT EXISTS question_tags (
                 question_id INT NOT NULL,
                 tag_id INT NOT NULL,
                 FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
@@ -153,8 +155,8 @@ async function initializeDatabase() {
                 INDEX idx_tag (tag_id)
             )`,
 
-            // Notifications table (for in-app notifications)
-            `CREATE TABLE IF NOT EXISTS notifications (
+      // Notifications table (for in-app notifications)
+      `CREATE TABLE IF NOT EXISTS notifications (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 user_id INT NOT NULL,
                 actor_id INT,
@@ -173,8 +175,8 @@ async function initializeDatabase() {
                 INDEX idx_created (created_at)
             )`,
 
-            // Bookmarks/Saved questions
-            `CREATE TABLE IF NOT EXISTS bookmarks (
+      // Bookmarks/Saved questions
+      `CREATE TABLE IF NOT EXISTS bookmarks (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 user_id INT NOT NULL,
                 question_id INT NOT NULL,
@@ -185,8 +187,8 @@ async function initializeDatabase() {
                 INDEX idx_user (user_id)
             )`,
 
-            // Question follows (for follow feature)
-            `CREATE TABLE IF NOT EXISTS question_follows (
+      // Question follows (for follow feature)
+      `CREATE TABLE IF NOT EXISTS question_follows (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 user_id INT NOT NULL,
                 question_id INT NOT NULL,
@@ -198,8 +200,8 @@ async function initializeDatabase() {
                 INDEX idx_question (question_id)
             )`,
 
-            // Team invites
-            `CREATE TABLE IF NOT EXISTS team_invites (
+      // Team invites
+      `CREATE TABLE IF NOT EXISTS team_invites (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 team_id INT NOT NULL,
                 email VARCHAR(255) NOT NULL,
@@ -212,24 +214,24 @@ async function initializeDatabase() {
                 FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE CASCADE,
                 INDEX idx_token (token),
                 INDEX idx_team_status (team_id, status)
-            )`
-        ];
+            )`,
+    ];
 
-        for (const tableSQL of tables) {
-            await connection.query(tableSQL);
-        }
-
-        console.log('✓ All database tables created successfully');
-
-        await connection.end();
-        return true;
-    } catch (error) {
-        console.error('Database initialization error:', error);
-        if (connection) {
-            await connection.end();
-        }
-        throw error;
+    for (const tableSQL of tables) {
+      await connection.query(tableSQL);
     }
+
+    // console.log('✓ All database tables created successfully');
+
+    await connection.end();
+    return true;
+  } catch (error) {
+    console.error("Database initialization error:", error);
+    if (connection) {
+      await connection.end();
+    }
+    throw error;
+  }
 }
 
 module.exports = initializeDatabase;

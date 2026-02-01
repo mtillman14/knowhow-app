@@ -124,6 +124,7 @@ router.get('/:slug/members', authenticateToken, async (req, res) => {
 
         const [members] = await db.query(
             `SELECT u.id, u.email, u.first_name, u.last_name, u.avatar_url, u.bio, tm.role, tm.joined_at,
+                    tm.started_at, tm.ended_at,
                     (SELECT COUNT(*) FROM questions WHERE user_id = u.id AND team_id = ?) as question_count,
                     (SELECT COUNT(*) FROM answers a
                      JOIN questions q ON a.question_id = q.id
@@ -241,6 +242,67 @@ router.get('/invites/:token', async (req, res) => {
     } catch (error) {
         console.error('Get invite error:', error);
         res.status(500).json({ error: 'Failed to get invite details' });
+    }
+});
+
+// Leave team (self-removal)
+router.delete('/:slug/leave', authenticateToken, async (req, res) => {
+    try {
+        const { slug } = req.params;
+
+        // Get team
+        const [teams] = await db.query('SELECT id FROM teams WHERE slug = ?', [slug]);
+        if (teams.length === 0) {
+            return res.status(404).json({ error: 'Team not found' });
+        }
+
+        const teamId = teams[0].id;
+
+        // Check if user is a member
+        const [membership] = await db.query(
+            'SELECT role FROM team_members WHERE user_id = ? AND team_id = ?',
+            [req.user.userId, teamId]
+        );
+
+        if (membership.length === 0) {
+            return res.status(400).json({ error: 'You are not a member of this team' });
+        }
+
+        // If user is an admin, check if they're the last admin
+        if (membership[0].role === 'admin') {
+            const [admins] = await db.query(
+                `SELECT COUNT(*) as count FROM team_members
+                 WHERE team_id = ? AND role = 'admin' AND user_id != ?`,
+                [teamId, req.user.userId]
+            );
+
+            if (admins[0].count === 0) {
+                // Check if there are other members who could be promoted
+                const [otherMembers] = await db.query(
+                    `SELECT COUNT(*) as count FROM team_members
+                     WHERE team_id = ? AND user_id != ?`,
+                    [teamId, req.user.userId]
+                );
+
+                if (otherMembers[0].count > 0) {
+                    return res.status(400).json({
+                        error: 'You are the only admin. Please promote another member to admin before leaving.'
+                    });
+                }
+                // If no other members, allow leaving (team will be empty)
+            }
+        }
+
+        // Remove the user from the team
+        await db.query(
+            'DELETE FROM team_members WHERE user_id = ? AND team_id = ?',
+            [req.user.userId, teamId]
+        );
+
+        res.json({ message: 'You have left the team' });
+    } catch (error) {
+        console.error('Leave team error:', error);
+        res.status(500).json({ error: 'Failed to leave team' });
     }
 });
 

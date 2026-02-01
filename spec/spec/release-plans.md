@@ -317,13 +317,13 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 ### Code Quality
 
-- [ ] Remove all `console.log` debug statements (keep error logging)
-- [ ] Ensure no sensitive data in error messages
+- [x] Remove all `console.log` debug statements (keep error logging)
+- [x] Ensure no sensitive data in error messages
 - [ ] Test all features work in production mode
 
 ### Security
 
-- [ ] All secrets via environment variables (no hardcoded values)
+- [x] All secrets via environment variables (no hardcoded values)
 - [ ] Password hashing uses bcrypt with appropriate cost factor
 - [ ] JWT secrets are sufficiently long and random
 - [ ] SQL injection protection via parameterized queries
@@ -339,7 +339,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 ### Docker
 
 - [ ] Production Dockerfile created and tested
-- [ ] docker-compose.prod.yml tested
+- [ ] docker-compose.yml tested
 - [ ] Multi-architecture builds working
 - [ ] Images pushed to registry
 
@@ -354,8 +354,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 ## Implementation Order
 
-4. **Short-term**: Write user-facing documentation
-5. **Later**: Consider database migration system
+1. **Short-term**: Write user-facing documentation
+2. **Later**: Consider database migration system
 
 ---
 

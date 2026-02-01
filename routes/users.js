@@ -21,7 +21,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
         // Get user's teams
         const [teams] = await db.query(
-            `SELECT t.*, tm.role as user_role
+            `SELECT t.*, tm.role as user_role, tm.started_at, tm.ended_at, tm.joined_at
              FROM teams t
              JOIN team_members tm ON t.id = tm.team_id
              WHERE tm.user_id = ?`,
@@ -118,6 +118,75 @@ router.put('/profile',
         } catch (error) {
             console.error('Update profile error:', error);
             res.status(500).json({ error: 'Failed to update profile' });
+        }
+    }
+);
+
+// Update membership dates (own dates or admin updating any member)
+router.put('/:id/membership/:teamId',
+    authenticateToken,
+    [
+        body('startedAt').optional({ nullable: true }).isISO8601().toDate(),
+        body('endedAt').optional({ nullable: true }).isISO8601().toDate()
+    ],
+    async (req, res) => {
+        try {
+            const { id, teamId } = req.params;
+            const { startedAt, endedAt } = req.body;
+            const userId = parseInt(id);
+
+            // Check if requesting user is either the member themselves or a team admin
+            const isOwnProfile = req.user.userId === userId;
+
+            if (!isOwnProfile) {
+                // Check if requesting user is admin of this team
+                const [adminCheck] = await db.query(
+                    'SELECT role FROM team_members WHERE user_id = ? AND team_id = ?',
+                    [req.user.userId, teamId]
+                );
+
+                if (adminCheck.length === 0 || adminCheck[0].role !== 'admin') {
+                    return res.status(403).json({ error: 'Only the member or a team admin can update membership dates' });
+                }
+            }
+
+            // Verify the target user is a member of the team
+            const [membership] = await db.query(
+                'SELECT id FROM team_members WHERE user_id = ? AND team_id = ?',
+                [userId, teamId]
+            );
+
+            if (membership.length === 0) {
+                return res.status(404).json({ error: 'User is not a member of this team' });
+            }
+
+            // Build update query
+            const updates = [];
+            const params = [];
+
+            if (startedAt !== undefined) {
+                updates.push('started_at = ?');
+                params.push(startedAt || null);
+            }
+            if (endedAt !== undefined) {
+                updates.push('ended_at = ?');
+                params.push(endedAt || null);
+            }
+
+            if (updates.length === 0) {
+                return res.status(400).json({ error: 'No updates provided' });
+            }
+
+            params.push(userId, teamId);
+            await db.query(
+                `UPDATE team_members SET ${updates.join(', ')} WHERE user_id = ? AND team_id = ?`,
+                params
+            );
+
+            res.json({ message: 'Membership dates updated successfully' });
+        } catch (error) {
+            console.error('Update membership dates error:', error);
+            res.status(500).json({ error: 'Failed to update membership dates' });
         }
     }
 );

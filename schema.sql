@@ -40,6 +40,8 @@ CREATE TABLE team_members (
     team_id INT NOT NULL,
     role ENUM('admin', 'member') DEFAULT 'member',
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    started_at DATE DEFAULT NULL,
+    ended_at DATE DEFAULT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
     UNIQUE KEY unique_membership (user_id, team_id),
