@@ -214,6 +214,57 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// Unaccept answer (question owner or admin only)
+router.post('/:id/unaccept', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Get answer and question info
+        const [answers] = await db.query(
+            `SELECT a.*, q.team_id, q.user_id as question_owner_id
+             FROM answers a
+             JOIN questions q ON a.question_id = q.id
+             WHERE a.id = ?`,
+            [id]
+        );
+
+        if (answers.length === 0) {
+            return res.status(404).json({ error: 'Answer not found' });
+        }
+
+        const answer = answers[0];
+
+        // Check if answer is actually accepted
+        if (!answer.is_accepted) {
+            return res.status(400).json({ error: 'Answer is not currently approved' });
+        }
+
+        // Check if user is question owner or admin
+        const [membership] = await db.query(
+            'SELECT role FROM team_members WHERE user_id = ? AND team_id = ?',
+            [req.user.userId, answer.team_id]
+        );
+
+        const isQuestionOwner = answer.question_owner_id === req.user.userId;
+        const isAdmin = membership.length > 0 && membership[0].role === 'admin';
+
+        if (!isQuestionOwner && !isAdmin) {
+            return res.status(403).json({ error: 'Only the question author or an admin can remove the approved status' });
+        }
+
+        // Unaccept the answer
+        await db.query(
+            'UPDATE answers SET is_accepted = 0 WHERE id = ?',
+            [id]
+        );
+
+        res.json({ message: 'Answer approval removed successfully' });
+    } catch (error) {
+        console.error('Unaccept answer error:', error);
+        res.status(500).json({ error: 'Failed to remove answer approval' });
+    }
+});
+
 // Accept answer (any team member can mark as approved)
 router.post('/:id/accept', authenticateToken, async (req, res) => {
     try {

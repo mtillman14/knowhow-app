@@ -1,17 +1,14 @@
-version: '3.8'
+version: "3.8"
 
 services:
   db:
     image: mysql:8.0
-    container_name: knowhow-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: knowhow
-      MYSQL_USER: knowhow
-      MYSQL_PASSWORD: knowhow123
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-knowhow}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -19,31 +16,33 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - knowhow-network
 
   app:
-    image: node:20
-    container_name: knowhow-app
+    build: .
     restart: unless-stopped
-    working_dir: /app
     ports:
-      - "3000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
+      - "${APP_PORT:-3000}:3000"
     environment:
       DB_HOST: db
-      DB_USER: knowhow
-      DB_PASSWORD: knowhow123
-      DB_NAME: knowhow
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-knowhow}
       DB_PORT: 3306
       PORT: 3000
-      NODE_ENV: development
-      JWT_SECRET: dev-jwt-secret-change-in-production
-      SESSION_SECRET: dev-session-secret-change-in-production
-    command: sh -c "npm install && npm start"
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - knowhow-network
 
 volumes:
   mysql_data:
+
+networks:
+  knowhow-network:
+    driver: bridge

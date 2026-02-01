@@ -146,11 +146,15 @@
             </div>
 
             <div class="header-actions">
+                <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">&#128269;</span>
+                <a href="#" id="bookmarks-link" title="Bookmarks" style="text-decoration: none;">
+                    <span class="header-icon">&#128278;</span>
+                </a>
                 <div class="notification-bell" id="notification-bell" title="Notifications">
                     <span class="header-icon">&#128276;</span>
                     <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
                 </div>
-                <button class="btn btn-primary" onclick="window.location.href='questions'">Questions</button>
+                <button class="btn btn-primary" onclick="window.location.href='ask'">Ask a question</button>
                 <a class="user-menu" id="user-menu" href="#" style="text-decoration: none; color: inherit; cursor: pointer;">
                     <span class="header-icon">&#128100;</span>
                 </a>
@@ -164,8 +168,6 @@
             <div style="display: flex; gap: 0;">
                 <a href="#" id="nav-questions" class="nav-tab">Questions</a>
                 <a href="#" id="nav-members" class="nav-tab">Members</a>
-                <a href="#" id="nav-bookmarks" class="nav-tab">Bookmarks</a>
-                <a href="#" id="nav-notifications" class="nav-tab active">Notifications</a>
                 <a href="#" id="nav-admin" class="nav-tab" style="display: none;">Admin</a>
             </div>
         </div>
@@ -228,9 +230,8 @@
         async function setupNavigation() {
             document.getElementById('nav-questions').href = `/team/${teamSlug}/questions`;
             document.getElementById('nav-members').href = `/team/${teamSlug}/members`;
-            document.getElementById('nav-bookmarks').href = `/team/${teamSlug}/bookmarks`;
-            document.getElementById('nav-notifications').href = `/team/${teamSlug}/notifications`;
             document.getElementById('nav-admin').href = `/team/${teamSlug}/admin`;
+            document.getElementById('bookmarks-link').href = `/team/${teamSlug}/bookmarks`;
 
             // Check if user is admin to show admin tab
             try {
@@ -247,11 +248,21 @@
 
         function setupSearch() {
             const searchInput = document.getElementById('search-input');
-            searchInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && searchInput.value.trim()) {
+            const searchIcon = document.getElementById('search-icon');
+
+            const performSearch = () => {
+                if (searchInput.value.trim()) {
                     window.location.href = `/team/${teamSlug}/questions?search=${encodeURIComponent(searchInput.value.trim())}`;
                 }
+            };
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
             });
+
+            searchIcon.addEventListener('click', performSearch);
         }
 
         async function loadTeamInfo() {

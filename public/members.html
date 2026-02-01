@@ -30,6 +30,9 @@
 
             <div class="header-actions">
                 <span class="header-icon" id="search-icon" title="Search" style="cursor: pointer;">&#128269;</span>
+                <a href="#" id="bookmarks-link" title="Bookmarks" style="text-decoration: none;">
+                    <span class="header-icon">&#128278;</span>
+                </a>
                 <a href="#" id="notification-bell" class="notification-bell" title="Notifications" style="position: relative; text-decoration: none;">
                     <span class="header-icon">&#128276;</span>
                     <span class="notification-badge" id="notification-badge" style="display: none; position: absolute; top: -8px; right: -8px; background: #d32f2f; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; min-width: 16px; text-align: center;">0</span>
@@ -48,8 +51,6 @@
             <div style="display: flex; gap: 0;">
                 <a href="#" id="nav-questions" class="nav-tab">Questions</a>
                 <a href="#" id="nav-members" class="nav-tab active">Members</a>
-                <a href="#" id="nav-bookmarks" class="nav-tab">Bookmarks</a>
-                <a href="#" id="nav-notifications" class="nav-tab">Notifications</a>
                 <a href="#" id="nav-admin" class="nav-tab" style="display: none;">Admin</a>
             </div>
         </div>
@@ -111,9 +112,8 @@
         async function setupNavigation() {
             document.getElementById('nav-questions').href = `/team/${teamSlug}/questions`;
             document.getElementById('nav-members').href = `/team/${teamSlug}/members`;
-            document.getElementById('nav-bookmarks').href = `/team/${teamSlug}/bookmarks`;
-            document.getElementById('nav-notifications').href = `/team/${teamSlug}/notifications`;
             document.getElementById('nav-admin').href = `/team/${teamSlug}/admin`;
+            document.getElementById('bookmarks-link').href = `/team/${teamSlug}/bookmarks`;
             document.getElementById('notification-bell').href = `/team/${teamSlug}/notifications`;
 
             // Check if user is admin to show admin tab

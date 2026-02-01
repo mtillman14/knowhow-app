@@ -148,10 +148,4 @@ A self-hosted Stack Overflow for Teams clone.
 - Search history
 - Password reset
 
-## Recent Development
-
-| Commit    | Description                            |
-| --------- | -------------------------------------- |
-| `0625af8` | Add members list                       |
-| `b9ec2aa` | Implement Edit question/answer feature |
-| `a5a3063` | Initial commit                         |
+## Other TODO

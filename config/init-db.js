@@ -221,35 +221,6 @@ async function initializeDatabase() {
 
         console.log('✓ All database tables created successfully');
 
-        // Migrations for existing databases - add new columns to notifications table
-        const addColumnIfNotExists = async (table, column, definition) => {
-            try {
-                const [columns] = await connection.query(
-                    `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
-                    [process.env.DB_NAME || 'knowhow', table, column]
-                );
-                if (columns.length === 0) {
-                    await connection.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-                    console.log(`  Added column ${column} to ${table}`);
-                }
-            } catch (err) {
-                console.log(`Migration notice for ${column}:`, err.message);
-            }
-        };
-
-        // Add new columns to notifications table
-        await addColumnIfNotExists('notifications', 'actor_id', 'INT AFTER user_id');
-        await addColumnIfNotExists('notifications', 'comment_id', 'INT AFTER answer_id');
-
-        // Update type enum to include 'accepted'
-        try {
-            await connection.query(`ALTER TABLE notifications MODIFY COLUMN type ENUM('mention', 'answer', 'comment', 'upvote', 'accepted') NOT NULL`);
-        } catch (err) {
-            // Ignore if already updated
-        }
-
-        console.log('✓ Database migrations applied');
-
         await connection.end();
         return true;
     } catch (error) {

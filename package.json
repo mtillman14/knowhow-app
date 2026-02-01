@@ -18,6 +18,7 @@
     "cookie-parser": "^1.4.6",
     "express-validator": "^7.0.1",
     "dotenv": "^16.3.1",
+    "helmet": "^8.0.0",
     "marked": "^9.1.2",
     "dompurify": "^3.0.6",
     "jsdom": "^22.1.0"

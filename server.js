@@ -1,12 +1,19 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
 const path = require('path');
 require('dotenv').config();
 
 const initializeDatabase = require('./config/init-db');
+const db = require('./config/database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Security headers (all except HSTS which forces HTTPS)
+app.use(helmet({
+    hsts: false
+}));
 
 // Middleware
 app.use(express.json());
@@ -39,6 +46,25 @@ app.use('/api/users', userRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+
+// Health check endpoint (for container orchestration / load balancers)
+app.get('/health', async (req, res) => {
+    const health = {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        database: 'connected'
+    };
+
+    try {
+        await db.query('SELECT 1');
+        res.json(health);
+    } catch (error) {
+        health.status = 'unhealthy';
+        health.database = 'disconnected';
+        res.status(503).json(health);
+    }
+});
 
 // Serve frontend pages
 app.get('/', (req, res) => {
