@@ -117,8 +117,9 @@
           <input
             type="text"
             id="question-title"
-            placeholder="e.g. How do I implement authentication in Node.js?"
+            placeholder="e.g. Where can I find extra pencils?"
             style="width: 100%; padding: 10px"
+            tabindex="1"
           />
           <div class="error" id="title-error" style="display: none"></div>
         </div>
@@ -216,6 +217,7 @@
               class="editor-textarea"
               id="question-body"
               placeholder="Describe your question in detail..."
+              tabindex="2"
             ></textarea>
           </div>
           <div class="error" id="body-error" style="display: none"></div>
@@ -271,19 +273,35 @@
           <p style="font-size: 13px; color: #6a737c; margin-bottom: 8px">
             Select team members who you think might know the answer.
           </p>
-          <div style="position: relative; width: 100%;">
+          <div style="position: relative; width: 100%">
             <input
               type="text"
               id="members-input"
               placeholder="Type a name"
-              style="width: 100%; padding: 10px; position: relative; background: transparent; z-index: 2;"
+              style="
+                width: 100%;
+                padding: 10px;
+                position: relative;
+                background: transparent;
+                z-index: 2;
+              "
               autocomplete="off"
             />
             <input
               type="text"
               id="members-hint"
               disabled
-              style="position: absolute; top: 0; left: 0; width: 100%; padding: 10px; color: #999; background: white; z-index: 1; border: 1px solid transparent;"
+              style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                padding: 10px;
+                color: #999;
+                background: white;
+                z-index: 1;
+                border: 1px solid transparent;
+              "
             />
             <div
               id="members-suggestions"
@@ -299,12 +317,22 @@
                 max-height: 200px;
                 overflow-y: auto;
                 z-index: 100;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
               "
             ></div>
           </div>
-          <p style="font-size: 11px; color: #999; margin-top: 4px;">
-            Press <kbd style="background: #e1e1e1; padding: 1px 5px; border-radius: 3px; font-size: 10px;">Tab</kbd> to autocomplete
+          <p style="font-size: 11px; color: #999; margin-top: 4px">
+            Press
+            <kbd
+              style="
+                background: #e1e1e1;
+                padding: 1px 5px;
+                border-radius: 3px;
+                font-size: 10px;
+              "
+              >Tab</kbd
+            >
+            to autocomplete
           </p>
           <div
             id="members-container"
@@ -550,23 +578,31 @@
             // Show hint only if query matches beginning of the name
             if (fullName.toLowerCase().startsWith(query.toLowerCase())) {
               hint.value = query + fullName.slice(query.length);
-            } else if (firstMatch.first_name.toLowerCase().startsWith(query.toLowerCase())) {
-              hint.value = query + firstMatch.first_name.slice(query.length) + ' ' + firstMatch.last_name;
+            } else if (
+              firstMatch.first_name
+                .toLowerCase()
+                .startsWith(query.toLowerCase())
+            ) {
+              hint.value =
+                query +
+                firstMatch.first_name.slice(query.length) +
+                " " +
+                firstMatch.last_name;
             } else {
-              hint.value = '';
+              hint.value = "";
             }
           } else {
-            hint.value = '';
+            hint.value = "";
           }
         }
 
         function highlightSuggestion(index) {
-          const items = suggestions.querySelectorAll('.suggestion-item');
+          const items = suggestions.querySelectorAll(".suggestion-item");
           items.forEach((item, i) => {
             if (i === index) {
-              item.style.background = '#e1ecf4';
+              item.style.background = "#e1ecf4";
             } else {
-              item.style.background = 'white';
+              item.style.background = "white";
             }
           });
           selectedIndex = index;
@@ -585,7 +621,10 @@
 
         function acceptSuggestion() {
           const index = selectedIndex >= 0 ? selectedIndex : 0;
-          if (currentSuggestions.length > 0 && index < currentSuggestions.length) {
+          if (
+            currentSuggestions.length > 0 &&
+            index < currentSuggestions.length
+          ) {
             const member = currentSuggestions[index];
             addMember(member.id, member.first_name, member.last_name);
             return true;
@@ -601,7 +640,7 @@
           if (query.length < 1) {
             suggestions.style.display = "none";
             currentSuggestions = [];
-            hint.value = '';
+            hint.value = "";
             return;
           }
 
@@ -618,7 +657,7 @@
 
               // Filter out already selected members
               currentSuggestions = members.filter(
-                m => !selectedMembers.find(sm => sm.id === m.id)
+                (m) => !selectedMembers.find((sm) => sm.id === m.id),
               );
 
               if (currentSuggestions.length > 0) {
@@ -636,19 +675,21 @@
                 updateHint();
 
                 // Add click handlers to suggestion items
-                suggestions.querySelectorAll('.suggestion-item').forEach(item => {
-                  item.addEventListener('click', () => {
-                    const idx = parseInt(item.dataset.index);
-                    const member = currentSuggestions[idx];
-                    addMember(member.id, member.first_name, member.last_name);
+                suggestions
+                  .querySelectorAll(".suggestion-item")
+                  .forEach((item) => {
+                    item.addEventListener("click", () => {
+                      const idx = parseInt(item.dataset.index);
+                      const member = currentSuggestions[idx];
+                      addMember(member.id, member.first_name, member.last_name);
+                    });
+                    item.addEventListener("mouseenter", () => {
+                      highlightSuggestion(parseInt(item.dataset.index));
+                    });
                   });
-                  item.addEventListener('mouseenter', () => {
-                    highlightSuggestion(parseInt(item.dataset.index));
-                  });
-                });
               } else {
                 suggestions.style.display = "none";
-                hint.value = '';
+                hint.value = "";
               }
             } catch (error) {
               console.error("Search members error:", error);
@@ -663,23 +704,32 @@
           } else if (e.key === "ArrowDown") {
             e.preventDefault();
             if (currentSuggestions.length > 0) {
-              const newIndex = selectedIndex < currentSuggestions.length - 1 ? selectedIndex + 1 : 0;
+              const newIndex =
+                selectedIndex < currentSuggestions.length - 1
+                  ? selectedIndex + 1
+                  : 0;
               highlightSuggestion(newIndex);
             }
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
             if (currentSuggestions.length > 0) {
-              const newIndex = selectedIndex > 0 ? selectedIndex - 1 : currentSuggestions.length - 1;
+              const newIndex =
+                selectedIndex > 0
+                  ? selectedIndex - 1
+                  : currentSuggestions.length - 1;
               highlightSuggestion(newIndex);
             }
           } else if (e.key === "Enter") {
-            if (currentSuggestions.length > 0 && (selectedIndex >= 0 || hint.value)) {
+            if (
+              currentSuggestions.length > 0 &&
+              (selectedIndex >= 0 || hint.value)
+            ) {
               e.preventDefault();
               acceptSuggestion();
             }
           } else if (e.key === "Escape") {
             suggestions.style.display = "none";
-            hint.value = '';
+            hint.value = "";
             currentSuggestions = [];
           }
         });
@@ -691,7 +741,7 @@
             !e.target.closest("#members-suggestions")
           ) {
             suggestions.style.display = "none";
-            hint.value = '';
+            hint.value = "";
           }
         });
       }

@@ -355,8 +355,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 ## Implementation Order
 
 4. **Short-term**: Write user-facing documentation
-5. **Medium-term**: Set up GitHub Actions for automated releases
-6. **Later**: Consider database migration system
+5. **Later**: Consider database migration system
 
 ---
 

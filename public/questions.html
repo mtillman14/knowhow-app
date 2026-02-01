@@ -460,7 +460,7 @@
                             <a href="/team/${teamSlug}/questions/${q.id}">${q.title}</a>${closedBadge}
                         </h3>
                         <div class="question-excerpt">
-                            ${q.body.substring(0, 200)}${q.body.length > 200 ? "..." : ""}
+                            ${KnowHow.parseMarkdown(q.body.substring(0, 200) + (q.body.length > 200 ? "..." : ""))}
                         </div>
                         <div class="question-tags">
                             ${tags}
